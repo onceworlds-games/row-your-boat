@@ -5,7 +5,6 @@ import '@fontsource-variable/fraunces/soft.css';
 import '@fontsource/dm-sans/latin-500.css';
 import '@fontsource/dm-sans/latin-700.css';
 import ow from '@onceworlds/sdk';
-import * as THREE_DBG from 'three';
 import { createScene } from './render/scene.js';
 import { createUI } from './ui/ui.js';
 import { createStore } from './save.js';
@@ -92,10 +91,6 @@ async function boot() {
   const store = createStore();
   const loading = store.load();
   const scene = createScene(canvas);
-  if (q.has("debug")) {
-    window.__scene = scene;
-    window.__THREE = THREE_DBG;
-  }
   const game = createGame({ ow, scene, ui, store, flags: flagsOf() });
 
   const fit = () => {
