@@ -1282,7 +1282,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const p = P();
     const nodes = STREAMS.map((s) => {
       const d = p.dream[s.n];
-      return { n: s.n, name: s.name, stars: d?.stars ?? [0, 0, 0], best: d?.best ? fmt(d.best) : '', locked: s.n > 1 && !p.dream[s.n - 1]?.best, next: false };
+      return { n: s.n, name: s.name, stars: d?.stars ?? [0, 0, 0], lilies: !!d?.lilies, best: d?.best ? fmt(d.best) : '', locked: s.n > 1 && !p.dream[s.n - 1]?.best, next: false };
     });
     const nxt = nodes.find((nd) => !nd.locked && !p.dream[nd.n]?.best);
     if (nxt) nxt.next = true;

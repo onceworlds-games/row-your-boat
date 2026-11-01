@@ -743,6 +743,12 @@ export function createUI(root, tagRoot) {
         e.append(h('span', 'nm', nd.name));
         const st = h('span', 'st');
         st.textContent = nd.stars.map((s) => (s ? '★' : '☆')).join('');
+        // every moonbloom on the stream taken in one run
+        if (nd.lilies) {
+          const lil = svgEl(ICON.bloom, 'lil');
+          lil.setAttribute('aria-label', 'Every moonbloom');
+          st.append(lil);
+        }
         e.append(st);
         if (nd.best) e.append(h('span', 'bt', nd.best));
         e.style.left = `${pts[i].x}px`;
