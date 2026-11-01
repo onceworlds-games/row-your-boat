@@ -64,16 +64,47 @@ export function createScene(canvas, { poster = false } = {}) {
   let needWarm = false;
   let warming = null;
   let warmAt = 0;
+  let warmQ = null; // without parallel compiling: the objects still to compile, a few each frame
   function warm() {
     const r = world.renderer;
-    if (warming || typeof r.compileAsync !== 'function') return;
+    // a parallel compile already under way finishes first; a queue is made again with what is in the scene now
+    if (warming && !warmQ) return;
     warmAt = performance.now();
-    warming = r
-      .compileAsync(world.scene, world.camera)
-      .catch(() => {})
-      .then(() => {
-        warming = null;
-      });
+    let parallel = false;
+    try {
+      parallel = !world.lite && typeof r.compileAsync === 'function' && r.extensions.has('KHR_parallel_shader_compile');
+    } catch {}
+    if (parallel) {
+      warming = r
+        .compileAsync(world.scene, world.camera)
+        .catch(() => {})
+        .then(() => {
+          warming = null;
+        });
+      return;
+    }
+    // the browser compiles one program at a time on the page's thread (software GL, some phones): link each in its own
+    // slice of a frame, so the page keeps answering the platform and the player meanwhile
+    warmQ = [];
+    scene.traverseVisible((o) => {
+      if (o.material) warmQ.push(o);
+    });
+    warming = true;
+  }
+  function warmStep() {
+    const r = world.renderer;
+    const t0 = performance.now();
+    while (warmQ.length && performance.now() - t0 < 10) {
+      const o = warmQ.pop();
+      try {
+        r.compile(o, camera, scene);
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) r.properties.get(m).currentProgram?.getUniforms();
+      } catch {}
+    }
+    if (!warmQ.length) {
+      warmQ = null;
+      warming = null;
+    }
   }
 
   function disposeTree(o) {
@@ -632,7 +663,8 @@ export function createScene(canvas, { poster = false } = {}) {
         needWarm = false;
         if (!poster) warm();
       }
-      if (!warming || performance.now() - warmAt > 4000) world.render(dt);
+      if (warmQ) warmStep();
+      if (!warming || performance.now() - warmAt > (world.lite ? 90000 : 4000)) world.render(dt);
     }
   }
 

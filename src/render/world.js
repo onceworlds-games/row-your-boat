@@ -221,8 +221,31 @@ function streakTexture() {
 
 // ---------------------------------------------------------------- the world
 
+/** Whether WebGL draws in software here (no GPU: SwiftShader, llvmpipe), asked once of a throwaway context. */
+let soft = null;
+export function softwareGL() {
+  if (soft !== null) return soft;
+  soft = false;
+  try {
+    // a local switch for looking at this path on a machine with a GPU (captures)
+    if (new URLSearchParams(location.search).has('lite')) return (soft = true);
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    if (gl) {
+      const info = gl.getExtension('WEBGL_debug_renderer_info');
+      const name = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+      soft = /swiftshader|llvmpipe|softpipe|software/i.test(name);
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    }
+  } catch {}
+  return soft;
+}
+
 export function createWorld(canvas, { poster = false } = {}) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: poster, alpha: false, stencil: false });
+  // without a GPU every shader compiles and every pixel shades on the CPU: one lantern light, no reflections of the sky
+  // and no multisampling keep the river playable there
+  const lite = !poster && softwareGL();
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !lite, powerPreference: 'high-performance', preserveDrawingBuffer: poster, alpha: false, stencil: false });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.75;
@@ -340,11 +363,11 @@ export function createWorld(canvas, { poster = false } = {}) {
   scene.add(bow);
   // a soft lamp behind the boat that lights the rower's face from the camera's side
   const stern = new THREE.PointLight('#ffd08a', 0, 8, 1.6);
-  scene.add(stern);
+  if (!lite) scene.add(stern);
   // a fixed pool of real lights that move to the bank lanterns nearest the camera
   const pool = [0, 1, 2].map(() => {
     const l = new THREE.PointLight('#ffb547', 0, 17, 1.7);
-    scene.add(l);
+    if (!lite) scene.add(l);
     return l;
   });
 
@@ -352,6 +375,10 @@ export function createWorld(canvas, { poster = false } = {}) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   let envRT = null;
   function makeEnvironment(th) {
+    if (lite) {
+      scene.environment = null;
+      return;
+    }
     const es = new THREE.Scene();
     const m = skyMat.clone();
     const dome = new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), m);
@@ -640,7 +667,7 @@ export function createWorld(canvas, { poster = false } = {}) {
   }
 
   return {
-    renderer, scene, camera, sun, hemi, moonDir, stars, mirror,
+    renderer, scene, camera, sun, hemi, moonDir, stars, mirror, lite,
     resize, setQuality, setTheme, follow, setBow, setPool, setFlash, render,
     glowTexture,
     get quality() {
