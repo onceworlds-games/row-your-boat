@@ -96,7 +96,15 @@ export function createRacer({ course, song, ease = 1, offset = 0, s, d, h, brain
       const ph = song.phase(Math.max(0, tt));
       const env = { course, t: tt, beat: ph.dur, resting: song.resting(tt), B: beatPos(song, tt), others };
       const wasFinished = boat.finished;
+      const n0 = events.length;
       step(boat, DT, env, events);
+      // A bump puts one lantern out.
+      for (let e = n0; e < events.length; e++) {
+        if (events[e].type !== 'bump') continue;
+        const r = judge.bump();
+        events[e].level = r.level;
+        events[e].before = r.before;
+      }
       if (!wasFinished && boat.finished) judge.stop();
       simT = tt;
     }

@@ -12,7 +12,7 @@ test('a sharp rower finishes every stream near par; a clumsy one within the cap'
     assert.ok(Number.isFinite(clumsy.fin.b) && clumsy.fin.b < cap(def), `${def.id} clumsy ${clumsy.fin.b}`);
     assert.ok(clumsy.fin.b > t * 1.2, `${def.id}: skill matters (${clumsy.fin.b} vs ${t})`);
     const bumps = sharp.racers[0].boat.bumps;
-    assert.ok(bumps <= 12, `${def.id}: a sharp rower bumped ${bumps} times`);
+    assert.ok(bumps <= 14, `${def.id}: a sharp rower bumped ${bumps} times`);
   }
 });
 

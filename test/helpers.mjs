@@ -6,7 +6,7 @@ import { createBrain, botParams, habitOf } from '../src/sim/bot.js';
 import { startSlot, raceOver, outcome } from '../src/sim/race.js';
 
 /** Race `entries` ([{ id, skill, name, cap }]) on a stream. Returns { course, racers, fin, ended, t, groups }. */
-export function race(def, entries, seed = 'r') {
+export function race(def, entries, seed = 'r', { onEvent = null } = {}) {
   const course = buildCourse(def);
   const song = makeSong(def.bpm);
   const racers = entries.map((e, i) => {
@@ -23,7 +23,10 @@ export function race(def, entries, seed = 'r') {
     t += 0.05;
     for (const r of racers) {
       const others = racers.filter((o) => o !== r).map((o) => o.boat);
-      for (const ev of r.update(t, others)) if (ev.type === 'finish') fin[r.id] = ev.t;
+      for (const ev of r.update(t, others)) {
+        if (ev.type === 'finish') fin[r.id] = ev.t;
+        onEvent?.(r.id, ev);
+      }
       if (r.cap && r.judge.state.level > r.cap) r.judge.restore(r.cap);
     }
     ended = raceOver(def, fin, racers.map((r) => r.id), t);
