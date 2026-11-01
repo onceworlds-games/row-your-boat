@@ -1916,9 +1916,30 @@ button:focus-visible {
   }
 }
 
+@media (pointer: coarse) {
+  .key {
+    display: none;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 460px) {
   .signpost {
     top: 62%;
+  }
+  .shop {
+    width: min(480px, 58vw);
+  }
+  .shophead h2 {
+    font-size: 24px;
+  }
+  .tabs {
+    flex-wrap: nowrap;
+  }
+  .tab {
+    padding: 0 10px;
+  }
+  .items {
+    grid-template-columns: 1fr 1fr 1fr;
   }
   .plaque {
     top: calc(64px + var(--safe-top));

@@ -920,6 +920,17 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     }
     if (t > 0 && r.song.resting(t)) hint('glide', 'Glide…', perf);
     if (b.slip) hint('wake', 'Ride the wake', perf);
+    // the chart's moves, until they have been done a couple of times
+    if (t > 2) {
+      const cur = r.song.phase(t).beat;
+      const ahead = cur ? r.song.beats.slice(cur.i + 1, cur.i + 3) : [];
+      if ((js.pulls ?? 0) < 2 && ahead.some((x) => x.gold)) hint('gold', 'Gold: both oars together', perf, { again: 25 });
+      else if ((js.drops ?? 0) < 3 && ahead.some((x) => x.rush)) hint('drops', 'Small ripples: tap in between', perf, { again: 25 });
+    }
+    if ((b.blooms ?? 0) < 2) {
+      const next = r.course.blooms.find((m) => m.s > b.s + 6);
+      if (next && next.s - b.s < 22) hint('bloom', 'Steer through the moonblooms', perf, { again: 30 });
+    }
   }
 
   // ---------------------------------------------------------------- the HUD and name tags
@@ -1513,7 +1524,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       oar: null,
       ghost: null,
       calm: 0.6,
-      beam: screen === 'boathouse',
+      beam: screen === 'boathouse' ? 0.3 : false,
       camera: screen === 'boathouse' && boats[0] ? { mode: 'boathouse', portrait: H > W, boat: boats[0] } : { mode: 'dock', portrait: H > W },
       arch: { count: 0, finishLit: 9, sign: '' },
     };
@@ -1675,16 +1686,19 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     audio.fx.tap();
     screen = 'tonight';
     ui.start(false);
+    applyLobby();
     fetchEveryone(nightNow());
     showTonight();
     primary = () => startTonight();
   }
 
   function closeTonight() {
+    audio.fx.tap();
     ui.modal(null);
     screen = 'dock';
     dockSig = '';
     primary = null;
+    applyLobby();
   }
 
   function showTonight() {

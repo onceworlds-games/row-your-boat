@@ -448,7 +448,7 @@ export function createScene(canvas, { poster = false } = {}) {
       fm.tilt.localToWorld(bowV.set(0, 1.55, -1.45));
       const sx = focus.x - Math.sin(focus.h) * 2.6;
       const sz = focus.z + Math.cos(focus.h) * 2.6;
-      world.setBow({ x: bowV.x, y: bowV.y, z: bowV.z, sx, sy: 1.6, sz }, 0.45 + 0.55 * ((focus.c | 0) + 1) / 4);
+      world.setBow({ x: bowV.x, y: bowV.y, z: bowV.z, sx, sy: 1.6, sz }, (0.45 + 0.55 * ((focus.c | 0) + 1) / 4) * (typeof f.beam === 'number' ? f.beam : 1));
       streaks.push({ x: bowV.x, z: bowV.z, i: 0.25 + 0.15 * (focus.c | 0) });
     } else world.setBow(null);
     water.setLights(streaks);
