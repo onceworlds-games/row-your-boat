@@ -54,10 +54,26 @@ export function createScene(canvas, { poster = false } = {}) {
     scene.add(water.mesh, river.group, dream.group, blooms.group);
     const lights = [...river.lanterns, ...dream.lights.map((p) => ({ x: p.x, y: p.y, z: p.z, s: course.locate(p.x, p.z).s }))];
     cur = { id: stream.id, stream, course, theme, water, river, dream, blooms, lights };
+    needWarm = true;
     fx.clear();
     // shadow casters changed: let materials pick the light setup up
     world.setQuality(world.quality, world.renderer.getPixelRatio());
     return cur;
+  }
+
+  let needWarm = false;
+  let warming = null;
+  let warmAt = 0;
+  function warm() {
+    const r = world.renderer;
+    if (warming || typeof r.compileAsync !== 'function') return;
+    warmAt = performance.now();
+    warming = r
+      .compileAsync(world.scene, world.camera)
+      .catch(() => {})
+      .then(() => {
+        warming = null;
+      });
   }
 
   function disposeTree(o) {
@@ -609,7 +625,15 @@ export function createScene(canvas, { poster = false } = {}) {
     if (f.camera) placeCamera({ ...f.camera, dt, now, boat: f.camera.boat ?? focus, focusS: fs, pack });
     v4.set(camera.position.x, 0, camera.position.z);
     world.follow(focus ? v3.set(focus.x, 0, focus.z) : v4, now, dt);
-    if (f.render !== false) world.render(dt);
+    if (f.render !== false) {
+      // a new dream's materials compile off the page's main thread first (the last picture stays up meanwhile, at most
+      // a few seconds), so loading one never freezes the page
+      if (needWarm) {
+        needWarm = false;
+        if (!poster) warm();
+      }
+      if (!warming || performance.now() - warmAt > 4000) world.render(dt);
+    }
   }
 
   return {

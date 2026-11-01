@@ -52,7 +52,21 @@ function flagsOf() {
 
 const QUALITY = new URLSearchParams(location.search).get('quality');
 
-function settings() {
+/** Whether WebGL draws in software here (no GPU: SwiftShader, llvmpipe). Asked once. */
+let software = null;
+function softwareGL(renderer) {
+  if (software !== null) return software;
+  software = false;
+  try {
+    const gl = renderer.getContext();
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    software = /swiftshader|llvmpipe|softpipe|software/i.test(name);
+  } catch {}
+  return software;
+}
+
+function settings(renderer) {
   const s = ow.settings;
   let quality = 'medium';
   let pr = Math.min(2, devicePixelRatio || 1);
@@ -62,6 +76,11 @@ function settings() {
     pr = s.pixelRatio(2) || pr;
     reduced = !!s.reducedMotion;
   } catch {}
+  // drawing without a GPU: the lightest look (no mirror, shadows or bloom) at one pixel per pixel keeps it playable
+  if (renderer && softwareGL(renderer)) {
+    quality = 'low';
+    pr = 1;
+  }
   // a local switch for looking at one quality (captures, tests)
   if (['low', 'medium', 'high'].includes(QUALITY)) quality = QUALITY;
   return { quality, pr, reduced };
@@ -94,7 +113,7 @@ async function boot() {
   const game = createGame({ ow, scene, ui, store, flags: flagsOf() });
 
   const fit = () => {
-    const s = settings();
+    const s = settings(scene.world.renderer);
     scene.world.setQuality(s.quality, s.pr);
     scene.resize(innerWidth, innerHeight, s.pr);
     scene.setReduced(s.reduced);
