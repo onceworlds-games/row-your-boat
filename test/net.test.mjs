@@ -3,7 +3,7 @@
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createLocalServer } from './fake-room.mjs';
-import { createNet, cleanBoat, cleanExtras, cleanRound, easedSkill, streamForRound, INTRO, BOT_SKILL, NEWBIE_SKILL } from '../src/net.js';
+import { createNet, cleanBoat, cleanExtras, cleanRound, easedSkill, botLift, BOT_LIFT, streamForRound, INTRO, BOT_SKILL, NEWBIE_SKILL } from '../src/net.js';
 import { courseOf } from '../src/race.js';
 import { streamByN, cap } from '../src/sim/streams.js';
 
@@ -61,6 +61,15 @@ test('a newcomer in the race eases the bots', async () => {
   assert.equal(easedSkill(0.3, false), 0.3);
   assert.ok(Math.abs(easedSkill(BOT_SKILL[1], true) - NEWBIE_SKILL[1]) < 1e-9);
   teardown(net);
+});
+
+test('bots rise with the most seasoned rower: none at first, a little per level, capped', () => {
+  assert.equal(botLift(1), 0);
+  assert.equal(botLift(BOT_LIFT.from), 0);
+  assert.ok(Math.abs(botLift(BOT_LIFT.from + 5) - 5 * BOT_LIFT.per) < 1e-9);
+  assert.equal(botLift(99), BOT_LIFT.max);
+  assert.equal(botLift(NaN), 0);
+  assert.ok(BOT_SKILL[1] + BOT_LIFT.max <= 0.95, 'the best bot stays beatable');
 });
 
 test('the host refuses forged and early finishes, and takes a believable one', async () => {

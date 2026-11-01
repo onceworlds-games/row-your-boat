@@ -29,6 +29,13 @@ export function streamForRound(setting, round) {
   return ((first - 1 + Math.max(0, round - 1)) % STREAMS.length) + 1;
 }
 
+/** Seasoned rowers in the race lift the bots: from level 6, a little more skill per level (up to +0.3). */
+export const BOT_LIFT = { from: 5, per: 0.02, max: 0.3 };
+export function botLift(level) {
+  const lv = Number.isFinite(level) ? level : 1;
+  return Math.min(BOT_LIFT.max, Math.max(0, (lv - BOT_LIFT.from) * BOT_LIFT.per));
+}
+
 /** A newcomer in the race eases the bots: their skill mapped into the newcomer range. */
 export function easedSkill(skill, newbie) {
   if (!newbie) return skill;
@@ -111,9 +118,12 @@ export function createNet(room, hooks = {}) {
     admit: 'round',
     startRound(m) {
       const n = streamForRound(m.settings.stream, m.round);
-      const newbie = m.seats.some((s) => !s.bot && cleanExtras(room.players.get(s.id)?.presence).nb === 1);
+      const humans = m.seats.filter((s) => !s.bot).map((s) => cleanExtras(room.players.get(s.id)?.presence));
+      const newbie = humans.some((x) => x.nb === 1);
+      // the bots row up to the most seasoned person in the race (a newcomer keeps them gentle)
+      const lift = newbie ? 0 : botLift(Math.max(1, ...humans.map((x) => x.lv)));
       const bs = {};
-      for (const s of m.seats) if (s.bot) bs[s.id] = Math.round(easedSkill(s.skill, newbie) * 100) / 100;
+      for (const s of m.seats) if (s.bot) bs[s.id] = Math.round((easedSkill(s.skill, newbie) + lift) * 100) / 100;
       return { n, t0: room.matchNow() + INTRO * 1000, slots: slotsFor(m.seats.map((s) => s.id), m.random(`slots:${m.roundId}`)), fin: {}, nb: newbie ? 1 : 0, bs };
     },
     onTick(m) {
