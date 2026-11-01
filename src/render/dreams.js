@@ -132,7 +132,9 @@ const BUILD = {
     for (let k = 0; k < 6; k++) kit.add(G.rbox(3, 0.3, 3, 0.1), k % 2 ? '#F2A7B6' : '#9CC5A1', { x: -6 + (k % 3) * 6, y: 12.25, z: (k < 3 ? 1 : 9) + 3 }, { parent: bf });
     kit.add(G.rbox(7, 2.6, 4.5, 1.2), '#f4ebd0', { x: -4.5, y: 12, z: -BL / 2 + 4 }, { parent: bf });
     kit.add(G.rbox(7, 2.6, 4.5, 1.2), '#f4ebd0', { x: 4.5, y: 12, z: -BL / 2 + 4 }, { parent: bf });
-    kit.add(G.box(20, 16, 1.4), '#4a3226', { y: 8, z: -BL / 2 - 0.4 }, { parent: bf });
+    // the headboard stands between its posts above the bed frame: the short line runs out under it (a board down to
+    // the water would be sailed through)
+    kit.add(G.box(20, 10, 1.4), '#4a3226', { y: 13, z: -BL / 2 - 0.4 }, { parent: bf });
     kit.add(G.cyl(1, 1, 18, 10), '#4a3226', { x: -10, y: 9, z: -BL / 2 - 0.4 }, { parent: bf });
     kit.add(G.cyl(1, 1, 18, 10), '#4a3226', { x: 10, y: 9, z: -BL / 2 - 0.4 }, { parent: bf });
     kit.add(G.sphere(1.4, 10, 8), '#c9a24e', { x: -10, y: 18.6, z: -BL / 2 - 0.4 }, { parent: bf });

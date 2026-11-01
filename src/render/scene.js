@@ -160,6 +160,7 @@ export function createScene(canvas, { poster = false } = {}) {
     let follow = 1 - Math.exp(-dt * 5);
     if (c.mode !== camState.mode) {
       camState.mode = c.mode;
+      camState.orbitFor = null;
       if (c.snap) camState.init = false;
     }
     if ((c.mode === 'race' || c.mode === 'spectate' || c.mode === 'intro' || c.mode === 'finish') && b) {
@@ -193,7 +194,13 @@ export function createScene(canvas, { poster = false } = {}) {
         follow = 1 - Math.exp(-dt * 8);
       }
       if (c.mode === 'finish') {
-        const a = (c.now ?? 0) * 0.25;
+        // the orbit starts from where the camera is, so it swings round the boat instead of cutting through it
+        if (camState.orbitFor !== b.id || !Number.isFinite(camState.orbit)) {
+          camState.orbitFor = b.id;
+          camState.orbit = Math.atan2(camState.x - b.x, camState.z - b.z);
+        }
+        camState.orbit += dt * 0.25;
+        const a = camState.orbit;
         px = b.x + Math.sin(a) * 9;
         pz = b.z + Math.cos(a) * 9;
         py = 3.4;

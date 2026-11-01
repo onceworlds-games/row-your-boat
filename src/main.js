@@ -103,13 +103,16 @@ async function boot() {
 
   // The world paints at once; the title's button waits for the save (the profile).
   let drawn = false;
-  const loop = (perf) => {
+  // the frame's time from performance.now() (the clock input events and the audio are mapped to), not the rAF argument
+  const loop = () => {
+    const perf = performance.now();
     try {
       game.frame(perf);
-      if (!drawn) document.body.classList.add('drawn');
-      drawn = true;
     } catch (err) {
       console.error(err);
+    } finally {
+      if (!drawn) document.body.classList.add('drawn');
+      drawn = true;
     }
     requestAnimationFrame(loop);
   };

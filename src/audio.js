@@ -34,9 +34,18 @@ function make() {
     comp.ratio.value = 3;
     comp.attack.value = 0.004;
     comp.release.value = 0.2;
+    // last, a soft clip: unity for normal levels, loud moments (a finish over a full round) round off below 1 instead of
+    // clipping. The shaper's input is scaled by 1/4 so its curve covers ±4.
+    const pre = ctx.createGain();
+    pre.gain.value = 0.25;
+    const soft = ctx.createWaveShaper();
+    const curve = new Float32Array(2049);
+    for (let i = 0; i < curve.length; i++) curve[i] = Math.tanh(((i / (curve.length - 1)) * 2 - 1) * 4);
+    soft.curve = curve;
+    soft.oversample = '2x';
     master = ctx.createGain();
     master.gain.value = 0.85;
-    master.connect(comp).connect(ctx.destination);
+    master.connect(comp).connect(pre).connect(soft).connect(ctx.destination);
     musicBus = ctx.createGain();
     musicBus.gain.value = 0.5;
     musicBus.connect(master);

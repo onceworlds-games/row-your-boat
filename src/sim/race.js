@@ -95,8 +95,10 @@ export { par, cap };
 /** "1:04.3" */
 export function clock(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00.0';
-  const m = Math.floor(seconds / 60);
-  const s = seconds - m * 60;
+  // round to tenths first, so 9.97 reads 0:10.0 (not 0:010.0) and 59.97 reads 1:00.0
+  const tenths = Math.round(seconds * 10);
+  const m = Math.floor(tenths / 600);
+  const s = (tenths - m * 600) / 10;
   return `${m}:${s < 10 ? '0' : ''}${s.toFixed(1)}`;
 }
 

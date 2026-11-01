@@ -46,6 +46,8 @@ test('stars, clocks and ordinals', () => {
   assert.deepEqual(stars({ finished: true, place: 2, rhythm: 0.84 }), [true, false, false]);
   assert.deepEqual(stars({ finished: false, place: 1, rhythm: 1 }), [false, false, false]);
   assert.equal(clock(64.34), '1:04.3');
+  assert.equal(clock(9.97), '0:10.0');
+  assert.equal(clock(59.97), '1:00.0');
   assert.equal(clock(-1), '0:00.0');
   assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinal), ['st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'st', 'nd']);
 });
