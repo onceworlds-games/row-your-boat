@@ -738,6 +738,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
           const sd = ev.side || 0;
           scene.shake(0.45, bb && sd ? Math.cos(bb.h) * sd : 0, bb && sd ? Math.sin(bb.h) * sd : 0);
           scene.hitstop(0.05);
+          if (bb) scene.fx.bump(bb.x + Math.sin(bb.h) * 1.2, bb.z - Math.cos(bb.h) * 1.2, 1);
         }
         break;
       case 'touch':
