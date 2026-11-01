@@ -9,15 +9,19 @@
 **The goal in one look:** your little lantern-lit boat on a night river, silver ripples rolling down the water onto your
 oars in time with the song, rival boats beside you, and an arch of paper lanterns far ahead. Get there first.
 
-Description (store): "Row on the beat down a dream of a river. Fastest boat wins."
+Description (store): "Row to the song down a dreaming river: pull on the gold beats, tap the merrily droplets, gather
+moonblooms. Race friends or rowers, earn new boats, row tonight's stream."
 
 ## What the screen shows
 
 The camera sits behind and above your boat. Your rower sits facing you (real rowers face the stern), pulling the oars
 toward the camera. Ahead, moonlit **beat ripples** (silver crest lines across the water) roll down the river toward your
 boat and cross the **oar line** (the arc your oar blades sweep) exactly on each beat of the song. That is the whole
-lesson: when the ripple reaches your oars, tap. Four paper lanterns hang from a pole on your bow: they are your combo.
-Your place is a huge numeral top right. The finish arch glows at the end of the river.
+lesson: when the ripple reaches your oars, tap. Four paper lanterns hang on a garland over your bow: they are your combo.
+The song is a chart: the long notes come as **gold swells** (both oars for a pull), the "merrily" bar brings small
+**droplet** ripples between the beats, and glowing **moonblooms** float in lines to steer through. Your place is a huge
+numeral top right; your score, lanterns and bloom count sit top left under the platform's buttons. The finish arch glows
+at the end of the river.
 
 ## Controls
 
@@ -25,7 +29,8 @@ Your place is a huge numeral top right. The finish arch glows at the end of the 
 |---|---|---|
 | Left oar | A, ←, J | tap the left half of the screen |
 | Right oar | D, →, K | tap the right half of the screen |
-| Both oars (a straight stroke) | left + right within 50 ms | two thumbs together |
+| Both oars (a pull on a gold beat, else a straight stroke) | W, S, ↑, ↓, Space, or left + right within 50 ms | two thumbs together |
+| Droplets (the merrily bar) | either oar between the beats | either side between the beats |
 | Pause (The Dream only) | Esc, P | the pause sign (top right) |
 | Row it again (The Dream only) | R | the pause sign's Again |
 | Menus | click, Enter, Space | tap |
@@ -77,6 +82,24 @@ Rival rowers). Every hint shows once per player (save flag), and again only to a
   **×1** (one lit) → **×2** after 4 → **×3** after 8 → **×4** after 12.
 - **Miss:** down one lantern. **Splash:** all but the first out (back to ×1). **Bump** (bank, rock, log): down one lantern.
 
+### The chart: pulls, droplets, moonblooms, close shaves, score
+
+The song itself is the chart, so every verse has the same shape to learn and look forward to.
+
+- **Gold beats and pulls.** The long notes ("Row, row", "stream", "dream": beats 0, 6 and 14 of each verse) roll in as
+  gold swells. Both oars within 50 ms on a gold beat is a **pull**: quality ×1.25, a bigger surge, and it cancels the
+  turn (a pull can't steer, so experts plan their steering around the gold beats). One oar still counts as a normal
+  stroke: beginners lose nothing.
+- **Merrily droplets and rushes.** The "merrily, merrily, merrily, merrily" bar (beats 8-11) brings two small droplet
+  ripples between each pair of beats (a third and two thirds of the way). A tap within ±65 ms of one takes it: +0.12 m/s,
+  a small turn (40% of a stroke's) and the combo kept; outside its window a tap between the beats is a splash. All twelve
+  notes of the bar (four beats and eight droplets) is a **rush**: "Merrily!", +0.7 m/s and a burst of spray.
+- **Moonblooms.** Glowing water-lilies float in lines of five, 2.7 m apart (a line every 26-40 m: straight, sweeping
+  across or arcing, and along the short line of a split), some a hand's width from a rock, never inside anything solid. Sailing over one (1.25 m) takes it: a chime, +0.2 m/s, and one bloom, the currency.
+- **Close shaves.** Passing a rock, log or pendulum with less than 0.45 m to spare pays +0.3 m/s; touching it is a bump.
+- **Score:** rhythm points multiplied by the lanterns lit (perfect 100, good 50, pull 150, droplet 40), plus flat points
+  (rush 600, bloom 60, shave 150, bump −40), never below zero. It counts up in the corner and feeds the level (below).
+
 ### Speed
 
 - Target speed through the water by combo: **×1 4.0, ×2 5.2, ×3 6.4, ×4 7.6 m/s**.
@@ -101,7 +124,7 @@ Rival rowers). Every hint shows once per player (save flag), and again only to a
 
 - **Banks:** a bump bounces you back in, speed ×0.55, bow turned 15° away, minus one lantern, 0.6 s before the next bump
   counts. Never fatal.
-- **Rocks** (each dream's own: toy blocks, sugar cubes, books, cogs) and **logs** (spoons, page rolls, comets) that drift
+- **Rocks** (each dream's own: alphabet blocks, sugar cubes, books, cogs) and **logs** (spoons, page rolls, fallen stars) that drift
   slowly: the same bump plus a 25° spin.
 - **Lily pads** (or cloud puffs, ink blots): soft patches, drag doubled while you cross, no lantern lost.
 - **Whirlpools** (5 m): spin the boat up to 70°/s and pull it toward the centre at up to 1.2 m/s, both strongest at the
@@ -133,7 +156,7 @@ good rower at the speeds above. The key moves up through the set.
 | 4 | **Cloudbank** | 104 | B♭ | 600 m | rowing through clouds (mist that hides what's ahead: the bow beam matters), cloud islands, kite strings, a hot-air balloon | cloud-puff pads, 2 splits, long S-bends |
 | 5 | **The Library** | 110 | C | 660 m | bookshelf cliffs, open books as islands, a reading lamp | book rocks, page-roll logs, 2 ink whirlpools, a split through a book's spine |
 | 6 | **Clockwork** | 116 | D | 700 m | giant clock faces, turning gears | cog rocks, gear whirlpools, 3 pendulums sweeping across the river on the beat (pass between swings) |
-| 7 | **Sea of Stars** | 124 | E♭ | 760 m | the dream turns over: the river becomes the night sky, the moon below you, constellations as islands, lanterns hanging upside down | comet logs, galaxy whirlpools, 2 splits |
+| 7 | **Sea of Stars** | 124 | E♭ | 760 m | the dream turns over: the river becomes the night sky, the moon below you, constellations as islands, lanterns hanging upside down | fallen-star logs, galaxy whirlpools, 2 splits |
 | 8 | **Morning** | 132 | E | 820 m | dawn: back home, rapids down a quilt, an alarm clock ringing on the beat, curtains, the sun rising behind the finish | the longest rapids with a short line, everything at once |
 
 Every stream starts at a lantern start arch and ends at a **finish arch of paper lanterns** with a calm finish pool.
@@ -191,9 +214,10 @@ A player alone gets the whole game two ways, both from the Dock:
 - **One clock.** Song time = (`room.matchNow()` − the round record's `t0`) / 1000; negative during the count-in. Every page hears and sees the same beat; nothing about the beat is sent.
 - **Each page simulates its own boat** (fixed 120 Hz step, pure module) and **judges its own strokes** against the song
   clock. No round trip on a stroke.
-- **Presence** (15 Hz, < 200 bytes): `{ r, s, x, z, h, v, c, k, ls, lq, f, ft, y, nb, hat }`: the round it belongs to,
-  distance along the river, position, heading, speed, combo (0-3), stroke count, last stroke side and quality, finished
-  and when, bob, newcomer flag, hat. Others are drawn with
+- **Presence** (15 Hz, < 250 bytes): `{ r, s, x, z, h, v, c, k, ls, lq, f, ft, y, nb, hat, body, lantern, wake, trim,
+  lv }`: the round it belongs to, distance along the river, position, heading, speed, combo (0-3), stroke count, last
+  stroke side and quality (0-7: pulls and droplets too), finished and when, bob, newcomer flag, what the boat and rower
+  wear, and the level. Others are drawn with
   `room.presenceAt(id, { angles: ['h'], snap: 20 })`; a rise in `k` plays their oar animation and splash.
 - **Bots** are simulated only on the host's page (same physics, same judge), published as `host:boats`
   (`host.state`, 10 Hz, ~500 bytes); other pages interpolate them.
@@ -233,13 +257,34 @@ A player alone gets the whole game two ways, both from the Dock:
 
 ## Progression and reasons to come back
 
-- **Saves** (`ow.save`): `profile` = `{ v, calib, hints, first, dream: { [stream]: { best, stars } }, best: { [stream]:
-  race time }, totals: { races, wins, perfects }, hat, dot }`; `ghost-<n>` = the best Dream run of stream n, 5 samples a second, packed (~1-2 KB each).
-- **Personal bests** on the Dream chart, the Dock signpost (this stream) and the results.
-- **Unlocks:** Dream streams open one by one; rowers' hats unlock with stars (nightcap from the start; scarf at 6 stars,
-  beret at 12, sou'wester at 18, crown of moonflowers at 24), chosen by tapping your rower on the Dock.
-- **Leaderboards** (9): `stream-1` … `stream-8` (best time, lower is better, any finish) and `wins` (race wins).
-- **Badges** (9):
+Every race and Dream run pays **XP** (levels) and **moonblooms** (the currency); the ledger after a run shows each line
+and fills the level bar, level by level.
+
+- **Rower level** (1-30): XP to the next level = 100 + 25·(level − 1). A run pays: finished 40 (rowed 15), place 60 / 40 /
+  25 / 15 / 10 / 5 (with two boats or more), score ÷ 500 (up to 100), one per moonbloom, 50 for the first run of the
+  night, 100 for tonight's stream.
+- **The reward track:** each level gives something: boats only come from here (canoe 3, paper boat 6, swan 10, teacup
+  14, walnut shell 18, bathtub 24), plus hats, lantern colours, trims, wake trails (stars, petals, bubbles, fireflies,
+  notes) and bloom gifts. The plaque on the Dock shows the level, the bar and the next reward.
+- **Moonblooms:** the ones you take, +10 for a win, +30 for tonight's stream. Spent in **the Boathouse** (the Dock's first
+  button): hats 80-360, lanterns 120-240, trims 60-140, wakes 200-300. Boats aren't sold. You try anything on at your
+  berth before buying; others see what you wear (presence carries body, hat, lantern, wake, trim and level).
+- **Tonight's Dream:** one stream a night with a twist (Mirrored: bends reversed; Swift: the song ×1.12; Golden night:
+  every beat gold; In bloom: twice the moonblooms), the same for everyone (the night comes from `ow.now()`, turning at
+  midnight UTC). The streams come round in a fixed order and the twists shift each round: never the same stream or twist
+  two nights running, every pairing within 32 nights. The card shows tonight's best runs (`tonight-runs`, a daily list)
+  and how many blooms everyone has gathered tonight (`tonight-blooms`, a daily counter). The title's attract race rows
+  tonight's stream, so the first thing seen changes every night.
+- **Three wishes a night:** small goals drawn from the night (40-90 perfects, 6-16 pulls, 20-50 blooms, 2-6 shaves, 1-3
+  rushes, races, wins, a clean run, tonight's stream), 100 XP and 25 blooms each, 50 more for all three.
+- **The moon calendar:** each night you row lights the next phase (10 + 5 blooms a night, rising); seven nights running
+  is a full moon (100 blooms and a badge). A missed night starts a new moon.
+- **The Dream:** three stars per stream, a personal-best ghost, and a lily mark for taking every moonbloom in one run.
+- **Saves** (`ow.save`): `profile` v2 = `{ calib, hints, first, dream: { [n]: { best, stars, lilies } }, best, totals: {
+  races, wins, perfects, pulls, rushes, blooms, shaves }, dot, xp, blooms, bought, equip, night, moon, tonight }` (v1
+  profiles keep their star-earned hat and get XP for their past races); `ghost-<n>` = the best Dream run of stream n.
+- **Leaderboards** (10): `stream-1` … `stream-8` (best time), `wins` and `moonblooms` (blooms gathered).
+- **Badges** (15):
 
 | id | name | how |
 |---|---|---|
@@ -252,12 +297,21 @@ A player alone gets the whole game two ways, both from the Dock:
 | `choir` | Choir | Finish a race with three or more other people. |
 | `dreamer` | Dreamer | Finish all eight streams of The Dream. |
 | `life-is-but-a-dream` | Life Is But a Dream | Earn all 24 stars. |
+| `merrily-rush` | Merrily! | Row all twelve notes of a merrily bar. |
+| `bouquet` | Bouquet | Take all five moonblooms of a line. |
+| `close-shave` | Close Shave | Slip past a rock with a hand's width to spare. |
+| `level-10` | Old Salt | Reach level 10. |
+| `three-wishes` | Three Wishes | Grant all three of a night's wishes. |
+| `full-moon` | Full Moon | Row seven nights running. |
 
 ## Rival rowers (bots)
 
 Six named rowers, each with a boat paint, a symbol, a hat and a habit. Their seat's skill (0-1) sets the base; the habit
-bends it. In races the seats' skill is 0-0.6 (eased for newcomers, above); in The Dream each stream has its own band for
-its three rivals, from −0.3 to −0.05 on Bedtime to 0.82-0.95 on Morning.
+bends it. In races the seats' skill is 0-0.6 (eased for newcomers, above), lifted by the most seasoned person in the
+race: +0.02 per level from level 6, at most +0.3, so the rivals grow with you. In The Dream each stream has its own band
+for its three rivals, from −0.3 to −0.05 on Bedtime to 0.82-0.95 on Morning. The rivals row their own boats and wear
+their own lanterns and wakes (Mabel a swan, Otis a canoe, Wren a paper boat, Barty a bathtub, Juniper a teacup, Pell a
+walnut shell).
 
 | Rower | Look | Habit |
 |---|---|---|
@@ -271,7 +325,8 @@ its three rivals, from −0.3 to −0.05 on Bedtime to 0.82-0.95 on Morning.
 Bot brain (pure module, also the autoplay for the trailer): each beat it picks a side from the heading error to a racing
 line 1.5 + 2·skill beats ahead (double stroke if the error > 6°), dodges obstacles it sees within 18 + 12·skill m, takes
 short lines when skill ≥ 0.55, and taps with a timing error drawn from N(bias, σ), σ = 80 − 60·skill ms. It slips (a
-miss or a wrong side) with chance 8% − 7%·skill per beat. Its strokes go through the same judge and physics as a player's.
+miss or a wrong side) with chance 8% − 7%·skill per beat. It pulls on gold beats, taps droplets and steers for
+moonblooms as its skill allows. Its strokes go through the same judge and physics as a player's.
 
 ## Balance and timing (the numbers, and how they're checked)
 
@@ -293,7 +348,10 @@ miss or a wrong side) with chance 8% − 7%·skill per beat. Its strokes go thro
 | Race end | all finished, first finish + 30 s, or par × 2.2 |
 | Count-in / round end / results | 4 s / 6 s / 14 s (public) |
 | Cup points | 10, 7, 5, 3, 2, 1 |
-| Bots | σ 80 → 20 ms, slip 8% → 1% per beat, lookahead 18 → 30 m, skill 0-0.6 in races (−0.4 to −0.1 with a newcomer) |
+| Bots | σ 80 → 20 ms, slip 8% → 1% per beat, lookahead 18 → 30 m, skill 0-0.6 in races (−0.4 to −0.1 with a newcomer), +0.02 per level above 5 (max +0.3) |
+| Pull / droplet / rush | quality ×1.25 / ±65 ms, +0.12 m/s / +0.7 m/s for all twelve notes |
+| Moonblooms / shaves | 1.25 m reach, +0.2 m/s / under 0.45 m, +0.3 m/s |
+| Level / pay | 100 + 25·(L − 1) XP; finish 40, place 60-5, score ÷ 500 (≤ 100), blooms, night 50, tonight 100 |
 
 Node tests (`node --test`) check them through the pure modules:
 - **Judge and combo:** every window edge, double taps, both-oar chords, misses, breaths, the first-race windows.
@@ -306,6 +364,12 @@ Node tests (`node --test`) check them through the pure modules:
   intended bands (Bedtime beatable at a steady ×2).
 - **Races:** whole races of six bots for 100 seeds on each stream: they end in the designed time, places and cup points
   are right, ties share, unfinished boats rank by distance, no exceptions.
+- **The chart:** gold beats and pulls (both oars, the chord window, no turn), droplets (window, push, turn, combo kept,
+  once each), rushes (all twelve; a miss breaks that verse's), moonblooms (every stream has lines clear of solid things;
+  taken once), close shaves (paid within a hand's width, not on a touch), the score.
+- **Progression:** the level curve, the reward track (every level rewards, every boat on it), prices, buying and wearing,
+  a race's pay, the wishes of a night (same for everyone, three different), the moon calendar, Tonight's stream and twist
+  (never repeated two nights running, every pairing comes round), v1 profiles migrated.
 - **Room flow** through an in-memory room with the SDK's own helpers (`test/net.test.mjs`): a solo race's record, the
   newcomer easing, early, mid-river and repeated finishes refused and a believable one taken, the host leaving mid-race
   (the next host carries the bots on from `host:boats`), a latecomer watching and admitted at the next stream, garbage
@@ -315,35 +379,49 @@ Node tests (`node --test`) check them through the pure modules:
 
 All screens are the 3D world with type over it; panels are solid ink bands or wooden signs, never glassy cards.
 
-- **Title:** attract mode (six rival rowers racing Bedtime, a slow low camera gliding ahead of them, mid-river and
-  stepping round rocks; higher on a tall screen). Centre-left (near the top on a phone held upright): "Row Your Boat",
+- **Title:** attract mode (six rival rowers racing tonight's stream, the camera gliding a little ahead of the leading
+  group and to one side, the boats right of the middle so the name has the left; higher on a tall screen). Centre-left (near the top on a phone held upright): "Row Your Boat",
   huge, cream Fraunces, its reflection rippling under it. Below it: the **Row** button (an oar blade pointing right,
   56 px+ tall, `Space` key cap). Your best Dream stars (e.g. "★ 7") small under it once you have any. Nothing else.
 - **Dock (lobby):** the boats wait abreast at the start line under the start arch, six berths. Each berth: the boat,
   the rower (avatar colours, chosen hat), a tag with the name (DM Sans bold, cream on ink), a ready mark, the host's crown
   on private servers. Your boat takes the berth just right of the middle; empty berths on a private server show a "+"
   (invite). Left of the berths, **the signpost**: "Bedtime ‹ ›" and "One stream / Cup of three" (host taps to change;
-  others see the values), with your best time on that stream, and a second board for your hat. Top right (clear of the
-  platform menu): the **tuning fork** (Timing) and the **moon** (The Dream). Bottom: the platform's Ready strip (kept
+  others see the values), with your best time on that stream. Top left, under the platform's buttons: **the plaque**
+  (level, its bar, the next reward, your moonblooms). Top right: four discs, **Boathouse**, **Tonight** (with a dot
+  until you row tonight's stream), **The Dream** (the moon) and **Timing** (the tuning fork); a column on a phone held
+  upright. Bottom: the platform's Ready strip (kept
   clear). Portrait: the signpost across the top under the platform menu, the boats below. Watchers of a running race see
   that race instead, labelled "Watching · next race soon". On a page running outside the platform (a solo room), the
   Dock has its own **Race** button, since there is no Ready strip.
 - **Intro (4 s):** behind your boat at the start arch; the stream's name painted across the water in Fraunces ("Teatime")
   and, in a cup, "Stream 2 of 3"; the arch's three lanterns light on the count-in.
-- **Play HUD:** top right: your place, a huge numeral with a small suffix (cream, thick dark outline), the race time under
+- **Boathouse:** the camera swings to your boat's stern quarter at its berth; a wooden panel (a bottom sheet on a phone)
+  with tabs (Boat, Hat, Lantern, Trim, Wake), tiles with a swatch, the price in blooms or the level that brings it, a
+  lock or a check. Tapping a tile puts it on your boat at once; the button under the tiles buys or wears it.
+- **Tonight:** a card over the river: tonight's stream and twist ("Golden night · Every beat gold"), what everyone has
+  gathered tonight, tonight's best runs, **Row**, the three wishes with their bars, and the moon calendar.
+- **Ledger:** after every run, the lines it paid (Finished, 1st place, Score, Moonblooms, First of the night, Tonight's
+  Dream) and the level bar filling level by level, each new level's reward stamped in with a chime.
+- **Play HUD:** top left (under the platform's buttons): the score counting up, the four lanterns and the bloom count.
+  Top right: your place, a huge numeral with a small suffix (cream, thick dark outline), the race time under
   it, and in The Dream the gap to your ghost (+0.8 / −1.2). Right edge: a thin vertical river from start to arch with each
   boat's symbol at its distance (yours bigger). In the world: the bow lanterns (combo), the ripples (beat), the oar line,
   judgement words ("perfect", "good", "splash") rising small and quick from the oar that stroked. After the first finisher:
   the finish arch's lanterns go out one by one over the last 30 s, and a "0:24" on the arch. Hints centre, at ~38% height.
-- **Finish:** crossing the arch: a burst of paper lanterns and sparks, a bell chord, a short slow-motion beat (not in
-  reduced motion), your place stamped big ("2nd"). The boat rows itself into the finish pool while the camera circles.
+- **Finish:** crossing the arch: a burst of paper lanterns and sparks, a bell chord, a flash and a push-in, slow motion
+  for 1.4 s on a win (0.7 s otherwise; sparks and spray hang, the camera drifts; not in reduced motion), your place
+  stamped big ("2nd"). The camera circles your boat, then after 5 s the stamp shrinks to the top and the camera watches
+  whoever is nearest the line still rowing, one boat after another.
 - **Between streams (cup, 6 s):** the finish pool; a ranking band (solid ink): place numeral, avatar head, name, time or
   "+3.4", and the points flying into each total.
-- **Results (podium):** three stacks of giant pillows (3, 2 and 1 high) in the finish pool, the top three rowers standing
-  on them waving, paper-star confetti; below, the full ranking band; your line: place, time, "New best!", rhythm %. Private
+- **Results (podium):** a round raft past the finish with a velvet top and a brass-studded rim, three stacks of quilted
+  pillows (3, 2 and 1 high, gold numerals on the front), the top three rowers standing tall on them, a half-ring of lit
+  paper lanterns behind and the light pool hung over the stacks, paper-star confetti; the camera frames it in the top of
+  the screen; below, the full ranking band; your line: place, time, "New best!", rhythm %. Private
   host: "To the dock". Badges are the platform's notices.
 - **The Dream chart:** the night sky as a winding river of stars from bottom to top; eight moon-phase nodes, each with the
-  stream's name, three star slots, your best time; locked ones dim with a padlock shape. Tap a node: a wooden sign with the
+  stream's name, three star slots (a moonbloom after them when every bloom was taken in one run), your best time; locked ones dim with a padlock shape. Tap a node: a wooden sign with the
   stream's name, best, the stream's top 3 from its leaderboard, and **Row**. Back (top right).
 - **Dream pause:** a wooden sign: Resume, Again, Leave the dream. **Dream finish:** stars stamp in one by one (each with a
   bell), best time, rhythm %, Again (R) and Next stream.
@@ -387,6 +465,18 @@ All screens are the 3D world with type over it; panels are solid ink bands or wo
   Other players' boats carry a small name tag. The ghost is a translucent moonlit boat with no rower.
 - **The HUD in the world's language:** combo as lanterns on the bow, beat as ripples on the water, the finish clock on
   the arch, the place in big cream numerals, the progress as a little river.
+- **The revamp's look (see REVAMP.md for the teardown):** the river is a real planar mirror (the sky, the moon as a
+  long path of light, the lanterns, boats and giants) broken by flowing normals, with Fresnel, a wet shoreline, lapping
+  foam, moon glitter, splash rings from every blade, bow waves and wakes. Banks are sloped ground with a photographed
+  surface per dream (floorboards, tablecloth, marble, carpet, quilt; CC0 from Poly Haven), wet at the edge, with warm
+  pools under the lanterns, and scattered stones, grass, reeds, flowers and mushrooms. Set pieces have finishes (glaze,
+  wood grain, fabric weave, brushed brass, paper). A sky-matched environment map, bloom tuned to the lanterns, a colour
+  grade (indigo shadows, warm highlights) and a vignette. Each dream has its dressing: alphabet blocks in the bedroom,
+  fallen stars with tails on the sea of stars, ribbed paper lanterns on the arches.
+- **Boats:** seven bodies built in code: the clinker rowboat, a canoe, a folded paper boat (ruled lines), a swan (folded
+  wings, an S-neck), a teacup (handle, saucer, gilt rim), a walnut shell (fine ridged grid) and a bathtub (taps, claw
+  feet, a rubber duck); the lantern garland, yoke and pennant move to each bow. Wake trails (stars, petals, bubbles,
+  fireflies, notes) stream behind.
 - Reduced motion: no shake, no slow motion, no flashes; ripples and lanterns stay (they are the game), gentler particles.
 
 ## Sound
@@ -408,24 +498,14 @@ All synthesized in Web Audio, from one small sequencer in the song's key.
 
 ## Store art and the trailer
 
-- **Cover (`thumb-1`):** six boats abreast on the moonlit river under a giant floating teacup, beat ripples rolling onto
-  the oars, lanterns, spray from perfect strokes; "Row Your Boat" once, big.
-- **Action (`thumb-2`):** low and close: a boat crashing through the Morning rapids, water flying, lanterns swinging, the
-  rower leaning back mid-pull.
-- **Win (`thumb-3`):** a boat crossing the lantern arch first, a burst of paper lanterns, the others just behind.
-- **Multi (`thumb-4`):** six boats in a pack through the Library's bookshelf canyon.
-- **Icon:** one little wooden boat from three-quarters above, bow lanterns lit, nightcap rower, on indigo water inside a
-  silver ripple ring. No text.
-- **Badge art:** each a bold symbol on a coloured disc (an oar, four lanterns, a note, a calm wave, a lantern arch, a
-  camera shutter, three voices, a moon, a crescent of stars).
-- **Trailer (`store/trailer.mp4`, 31 s):** four boats abreast under the start arch at sunrise (Morning), ripples rolling
-  onto the oars, lanterns lighting, "Merrily ×3" (0-5.5 s) → Teatime among giant cups and the spoon, ×3 (5.5-10 s) →
-  Bedtime: the short line under the bed (10-14.5 s) → the Morning rapids beside a giant pencil, neck and neck (14.5-19 s)
-  → the Sea of Stars, constellations and rivals (19-23 s) → Bedtime's finish arch, "1st" and the lantern burst
-  (23-28.4 s) → "Row Your Boat" over the title's race of rowers (last 2.5 s). Captured with `vcap` from The Dream with
-  the autoplay (`?autoplay=1&dream=<n>&pilot=<0-1>`, local copies only: the local boat driven by the bot brain). The
-  Dream runs on the page's own clock, so virtual-time capture plays at true speed; a room race's clock is the server's,
-  which doesn't wait for a slow capture, so room races aren't in the trailer.
+- **Cover (`thumb-1`), action (`thumb-2`), win (`thumb-3`), multi (`thumb-4`), icon and every badge** are drawn by the
+  game's own poster mode (`?poster=<name>`, `src/poster.js`) and rendered by the originals' `posters.mjs`. Badge art: a
+  bold symbol on a coloured disc for each (an oar, four lanterns, a note, a calm wave, a lantern arch, a camera shutter,
+  three voices, a moon, a crescent of stars, droplets, a lily, a rock and a ripple, a "10", three wishes, a full moon).
+- **Trailer (`store/trailer.mp4`):** real play captured with `vcap` (virtual time, GPU Chrome, muted) from The Dream with
+  the autoplay (`?autoplay=1&dream=<n>&pilot=<0-1>`, local copies only): gold pulls, a merrily rush, moonblooms taken, the
+  dreams one after another, a win in slow motion, then "Row Your Boat" over the title's race for the last two seconds.
+  The Dream runs on the page's own clock, so virtual-time capture plays at true speed.
 
 ## Originality check
 
@@ -466,13 +546,16 @@ All synthesized in Web Audio, from one small sequencer in the song's key.
 - Vite + three.js (pinned), `@fontsource-variable/fraunces`, `@fontsource/dm-sans`. No physics library: the boat physics
   is a small 2D simulation on the river plane. `"dir": "dist"`, `base: './'`.
 - `src/sim/` (pure, tested in node): `streams.js` (the eight courses as data), `course.js` (centreline, widths, current,
-  obstacles, nearest-point lookup), `song.js` (melody, tempo map, breaths, beat times), `judge.js` (windows, combo),
-  `boat.js` (physics), `bot.js` (the brain), `race.js` (places, finish checks, ranking, cup points), `rng.js`.
+  obstacles, moonblooms, nearest-point lookup), `song.js` (melody, tempo map, breaths, beat times, gold beats and
+  droplets), `judge.js` (windows, combo, pulls, droplets, rushes), `boat.js` (physics, blooms, shaves), `score.js`,
+  `bot.js` (the brain), `race.js` (places, finish checks, ranking, cup points), `tonight.js` (tonight's stream and
+  twist), `rng.js`. `src/progress.js` (levels, the track, prices, pay, wishes, the moon) and `src/cosmetics.js` are pure too.
 - `src/` (browser): `main.js` (boot, join, the local-only autoplay switches), `game.js` (screens, races, the Dream, the
   timing check, hints, autoplay), `net.js` (match, host, bots, every value from other pages checked), `race.js` (a race
   of six on one page), `clock.js` (song time from the match clock), `audio.js` (sequencer and effects), `save.js`
-  (profile, ghosts, badges, leaderboards), `looks.js` (paints, clothes, avatars), `render/` (world, water shader, river,
-  boats, dreams, effects, camera), `ui/` (HUD and screens), `poster.js` (store art).
+  (profile, ghosts, badges, leaderboards), `looks.js` (paints, clothes, avatars, what each rival wears), `render/` (world,
+  water shader, river, boats and their bodies, rower, blooms, dreams, scatter, effects, camera, podium), `ui/` (HUD and
+  screens), `poster.js` (store art). Textures in `src/assets/tex/` (see CREDITS.md).
 - `test/*.test.mjs` for everything in `src/sim`, plus the room through `test/fake-room.mjs`.
 
 ## Changes from the spec
@@ -493,6 +576,10 @@ All synthesized in Web Audio, from one small sequencer in the song's key.
 - **The Dock's berths:** your boat takes the berth just right of the middle (the signpost stands on the left of the
   screen), the others fill outward, the far left last.
 - **Bedtime's bed** spans the short line with its headboard above the water, so the short way runs out under it.
+- **The revamp (November 2026):** the chart (pulls, droplets, rushes, moonblooms, shaves, score), levels and the reward
+  track, the Boathouse, Tonight's Dream, wishes and the moon calendar replace the star-unlocked hats; Tonight's twists are
+  Mirrored, Swift, Golden night and In bloom (fog and extra rapids were dropped: fog hides the chart, rapids would change
+  the courses everyone's times are on).
 
 ## Pre-build check
 
