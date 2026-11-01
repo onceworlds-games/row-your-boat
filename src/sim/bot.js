@@ -1,0 +1,159 @@
+// The rowers' brain: which oar and when, beat by beat. It plays through the same judge and physics as a player. Pure.
+
+import { rng } from './rng.js';
+import { YAW } from './boat.js';
+import { DEG, wrap } from './course.js';
+import { ROWERS } from './streams.js';
+
+function beatAt(song, t) {
+  if (t < 0) return t / song.base;
+  const i = song.indexAt(t);
+  const b = song.beats[i];
+  return i + Math.min(1, (t - b.t) / b.dur);
+}
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/** A rower's numbers from a skill (0 clumsy - 1 sharp) and a habit (streams.js ROWERS). */
+export function botParams(skill, habit = {}) {
+  const k = clamp(Number(skill) || 0, -0.6, 1);
+  return {
+    skill: k,
+    sigma: Math.max(0.01, 0.08 - 0.06 * k + (habit.sigma ?? 0)),
+    bias: habit.bias ?? 0,
+    slip: Math.max(0.003, 0.08 - 0.07 * k + (habit.slip ?? 0)),
+    sight: 18 + 12 * k + (habit.sight ?? 0),
+    lead: 6 + 8 * k,
+    short: habit.short === 'always' || (habit.short !== 'never' && k >= 0.55),
+    noise: (1 - k) * 6 * DEG,
+    overcorrect: habit.overcorrect ?? 0,
+    streaky: !!habit.streaky,
+    line: 0.35 * k,
+  };
+}
+
+export const habitOf = (name) => ROWERS[String(name).split(' ')[0]] ?? {};
+
+/**
+ * A brain for one boat. `key` seeds its choices (the same on any page that runs it: match, round, seat). `plan(boat,
+ * beat, t)` is asked once per rowed beat, a moment before it: { t, side } (side -1, 1, or 0 for both oars), or null to
+ * let the beat pass.
+ */
+export function createBrain(course, params, key, song = null) {
+  let lastSide = 1;
+  let hotUntil = -1;
+  const P = params;
+
+  /** Where to steer: a lateral plan along the river ahead (racing line, split channel, around solid things). */
+  function aim(boat, t) {
+    const look = Math.max(9, boat.v * 2.2) * (0.85 + 0.3 * P.skill);
+    const STEP = 2;
+    const n = Math.ceil(P.sight / STEP);
+    const base = (s) => {
+      const a = course.at(s);
+      return clamp(Math.sign(a.k) * a.hw * P.line, -a.hw + 2.2, a.hw - 2.2);
+    };
+    const lineAt = (s) => {
+      for (const is of course.islands) {
+        if (s < is.s0 - 34 || s > is.s1 + 4) continue;
+        if (is.s0 - P.sight - 24 > boat.s) continue;
+        let side = P.short ? is.short || 1 : -(is.short || 1);
+        // Already beside the island: stay on this side.
+        const isl = course.islandAt(boat.s);
+        if (isl && Math.abs(boat.d) > isl.half) side = Math.sign(boat.d) || side;
+        const ch = course.channelD(Math.max(is.s0, Math.min(is.s1, s)), side);
+        if (s >= is.s0 - 10) return ch;
+        const f = (s - (is.s0 - 34)) / 24;
+        return base(s) + (ch - base(s)) * f;
+      }
+      return base(s);
+    };
+    const prof = [];
+    for (let j = 0; j < n; j++) {
+      const s = boat.s + 2 + j * STEP;
+      prof.push({ s, d: lineAt(s), hard: false });
+    }
+    const avoid = (os, od, r) => {
+      if (os < boat.s - r || os > boat.s + P.sight) return;
+      for (const p of prof) {
+        if (Math.abs(p.s - os) > r + 3.5) continue;
+        if (Math.abs(od - p.d) > r + 1.9) continue;
+        const hw = course.at(p.s).hw - 1.7;
+        const left = od - r - 2.0;
+        const right = od + r + 2.0;
+        const okL = left > -hw && !insideIsland(p.s, left);
+        const okR = right < hw && !insideIsland(p.s, right);
+        if (okL && okR) p.d = Math.abs(left - boat.d) < Math.abs(right - boat.d) ? left : right;
+        else if (okL) p.d = left;
+        else if (okR) p.d = right;
+        p.hard = true;
+      }
+    };
+    for (const o of course.rocks) avoid(o.s, o.d, o.r);
+    // Moving things: where they'll be when the boat gets there.
+    const arrive = (os) => t + Math.max(0, os - boat.s) / Math.max(3, boat.v + boat.current);
+    for (const l of course.logs) {
+      if (l.s < boat.s - 3 || l.s > boat.s + P.sight) continue;
+      avoid(l.s, course.logAt(l, arrive(l.s)).d, Math.abs(Math.sin(l.ang)) * l.len * 0.5 + 0.7);
+    }
+    for (const w of course.whirls) avoid(w.s, w.d, w.r * 0.85);
+    for (const p of course.pendulums) {
+      if (p.s < boat.s - 3 || p.s > boat.s + P.sight) continue;
+      const ta = arrive(p.s);
+      const B = song ? beatAt(song, ta) : ta * 1.8;
+      avoid(p.s, course.pendulumAt(p, B).d, p.r + 0.6);
+    }
+    if (P.skill > 0.5) for (const p of course.pads) avoid(p.s, p.d, p.r * 0.7);
+    for (const p of prof) {
+      if (p.hard && Math.abs(p.d - boat.d) > 0.6) return { s: Math.max(p.s - 2, boat.s + Math.max(8, boat.v * 1.5)), d: p.d, hard: true };
+      if (p.s >= boat.s + look) return p;
+    }
+    return prof[prof.length - 1] ?? { s: boat.s + look, d: 0 };
+  }
+  function insideIsland(s, d) {
+    const isl = course.islandAt(s);
+    return !!isl && Math.abs(d - isl.c) < isl.half + 1.2;
+  }
+
+  function plan(boat, beat, t) {
+    const r = rng(`${key}:${beat.i}`);
+    let slip = P.slip;
+    if (P.streaky && beat.i <= hotUntil) slip *= 3;
+    if (boat.finished) slip = 0.5;
+    let wrong = false;
+    if (r.chance(slip)) {
+      if (P.streaky) hotUntil = beat.i + 6;
+      if (r.chance(0.5)) return null;
+      wrong = true;
+    } else r.next();
+    const target = aim(boat, t);
+    api._last = target;
+    // Pure pursuit along the river: the bow toward the target's offset, never more than 35° off the river, and a
+    // little ahead of a bend (the river turns while the stroke lands).
+    const here = course.at(boat.s);
+    const L = Math.max(8, target.s - boat.s);
+    const want = clamp(Math.atan2(target.d - boat.d, L), -35 * DEG, 35 * DEG);
+    const now = wrap(boat.h + boat.yaw - here.h);
+    const ahead = here.k * (boat.v + boat.current) * (beat.dur ?? 0.6);
+    let err = want - now + ahead + r.normal() * P.noise;
+    if (P.overcorrect > 0 && Math.abs(err) > 6 * DEG && r.chance(P.overcorrect)) err *= 1.8;
+    if (beat.rest) {
+      // A breath: no beat to keep, only steering when it's needed.
+      if (Math.abs(err) < 8 * DEG || boat.finished) return null;
+      return { t: beat.t + 0.05 + r.next() * 0.1, side: Math.sign(err) };
+    }
+    let side;
+    const cost = (sd) => Math.abs(err - sd * YAW);
+    const options = [-1, 0, 1].sort((a, b) => cost(a) - cost(b));
+    side = options[0];
+    // Rowers alternate when straight is close enough: it looks and sounds like rowing.
+    if (side === 0) side = cost(-lastSide) - cost(0) < 4 * DEG ? -lastSide : 0;
+    if (wrong) side = side === 0 ? lastSide : -side;
+    if (side !== 0) lastSide = side;
+    const offset = clamp(P.bias + r.normal() * P.sigma, -0.24, 0.24);
+    return { t: beat.t + offset, side };
+  }
+
+  const api = { plan, params: P, _last: null };
+  return api;
+}
