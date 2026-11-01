@@ -229,25 +229,38 @@ export function createScene(canvas, { poster = false } = {}) {
         roll = 0;
       }
     } else if (c.mode === 'title') {
-      // a slow glide along the river, low over the water, looking back at the boats
+      // a slow glide beside the leading boats, a little ahead, so the rowers and their oars are seen side-on; the
+      // camera drifts from one side of the river to the other and keeps the boats clear of the title's corner
       const t = c.now ?? 0;
-      const s = Math.max(course.start, Math.min(course.total - 30, (c.focusS ?? course.start) + 11 + Math.sin(t * 0.07) * 4));
+      const P = c.pack ?? (b ? { s: b.s, d: b.d } : { s: c.focusS ?? course.start, d: 0 });
+      const lead = P.s;
+      const front = P.top ?? lead;
+      const bd = Number.isFinite(P.d) ? P.d : 0;
+      const s = Math.max(course.start - 8, Math.min(course.total - 20, front + 7 + Math.sin(t * 0.09) * 1.5));
       const a = course.at(s);
-      let d = Math.sin(t * 0.05) * a.hw * 0.25;
+      const sway = Math.sin(t * 0.035 + 0.8);
+      let d = Math.max(-a.hw * 0.8, Math.min(a.hw * 0.8, bd + sway * 4));
       for (const o of course.rocks) {
-        if (o.s < s - 7 || o.s > s + 1.5 || Math.abs(o.d - d) > o.r + 2.4) continue;
-        const side = o.d > 0 ? -1 : 1;
-        d = Math.max(-a.hw * 0.7, Math.min(a.hw * 0.7, o.d + side * (o.r + 2.4)));
+        if (o.s < s - 4 || o.s > s + 2 || Math.abs(o.d - d) > o.r + 2) continue;
+        d = Math.max(-a.hw * 0.8, Math.min(a.hw * 0.8, o.d + (o.d > bd ? -1 : 1) * (o.r + 2)));
       }
       const p = course.point(s, d);
       px = p.x;
       pz = p.z;
-      py = (c.portrait ? 3.6 : 1.8) + Math.sin(t * 0.11) * 0.3;
-      const q = course.point(Math.max(0, s - 14), d * 0.2);
+      py = (c.portrait ? 5.6 : 3.4) + Math.sin(t * 0.11) * 0.3;
+      const q = course.point(Math.max(0, lead - 1), bd);
       lx = q.x;
       lz = q.z;
-      ly = c.portrait ? 0.6 : 1.2;
-      follow = 1 - Math.exp(-dt * 1.5);
+      if (!c.portrait) {
+        // aim left of the boats so they sit right of the middle
+        const vx = q.x - p.x;
+        const vz = q.z - p.z;
+        const vl = Math.hypot(vx, vz) || 1;
+        lx += (vz / vl) * 1.6;
+        lz -= (vx / vl) * 1.6;
+      }
+      ly = c.portrait ? -0.6 : 0.5;
+      follow = 1 - Math.exp(-dt * 3);
     } else if (c.mode === 'dock') {
       const s = course.start - 4 - (c.portrait ? 17 : 12);
       const p = course.point(s, 0);
@@ -325,6 +338,7 @@ export function createScene(canvas, { poster = false } = {}) {
   // ---------------------------------------------------------------- the frame
 
   const lightList = [];
+  let packAt = null;
   const strokeV = new THREE.Vector3();
   const bowV = new THREE.Vector3();
   /**
@@ -469,7 +483,34 @@ export function createScene(canvas, { poster = false } = {}) {
       if (Math.random() < 0.6) fx.confetti(podium.position.x, 9, podium.position.z);
     }
     fx.update(fxDt, now);
-    if (f.camera) placeCamera({ ...f.camera, dt, now, boat: f.camera.boat ?? focus, focusS: fs });
+    let pack = null;
+    if (f.camera?.mode === 'title' && f.boats?.length) {
+      // the middle of the leading group (boats within 10 m of the front), followed smoothly
+      let top = -Infinity;
+      for (const b of f.boats) if (!b.hidden && b.s > top) top = b.s;
+      let ps = 0;
+      let pd = 0;
+      let pn = 0;
+      for (const b of f.boats) {
+        if (b.hidden || b.s < top - 10) continue;
+        ps += b.s;
+        pd += b.d ?? 0;
+        pn++;
+      }
+      if (pn) {
+        ps /= pn;
+        pd /= pn;
+        // the front moves smoothly by itself; only the group's shape behind it is eased
+        if (!packAt || Math.abs(packAt.top - top) > 40) packAt = { top, off: ps - top, d: pd, s: ps };
+        const k = 1 - Math.exp(-dt * 1.5);
+        packAt.top = top;
+        packAt.off += (ps - top - packAt.off) * k;
+        packAt.d += (pd - packAt.d) * k;
+        packAt.s = top + packAt.off;
+        pack = packAt;
+      }
+    }
+    if (f.camera) placeCamera({ ...f.camera, dt, now, boat: f.camera.boat ?? focus, focusS: fs, pack });
     v4.set(camera.position.x, 0, camera.position.z);
     world.follow(focus ? v3.set(focus.x, 0, focus.z) : v4, now, dt);
     if (f.render !== false) world.render(dt);

@@ -101,7 +101,7 @@ function wallpaperTexture() {
   for (let k = 0; k < 18; k++) {
     const x = (k % 4) * 128 + 32 + (Math.floor(k / 4) % 2) * 64;
     const y = Math.floor(k / 4) * 112 + 40;
-    g.fillStyle = 'rgba(246, 232, 196, 0.8)';
+    g.fillStyle = 'rgba(214, 204, 240, 0.34)';
     if (k % 3 === 0) {
       g.beginPath();
       g.arc(x, y, 13, 0, PI * 2);

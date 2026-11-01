@@ -11,6 +11,7 @@
   --sans: 'DM Sans', system-ui, -apple-system, sans-serif;
   --safe-top: 0px;
   --safe-bottom: 0px;
+  --safe-tl: 70px;
   --menu-w: 0px;
 }
 
@@ -574,7 +575,7 @@ button:focus-visible {
 
 .tally {
   position: absolute;
-  top: calc(10px + var(--safe-top));
+  top: calc(6px + var(--safe-tl));
   left: 16px;
   pointer-events: none;
 }
@@ -1240,7 +1241,7 @@ button:focus-visible {
 .plaque {
   position: absolute;
   left: 14px;
-  top: calc(70px + var(--safe-top));
+  top: max(70px, calc(var(--safe-tl) + 10px));
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1644,7 +1645,7 @@ button:focus-visible {
 .ledger.float {
   position: absolute;
   left: 14px;
-  top: calc(70px + var(--safe-top));
+  top: calc(var(--safe-tl) + 100px);
   width: min(300px, calc(100vw - 28px));
   background:
     repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 9px),
@@ -1942,7 +1943,7 @@ button:focus-visible {
     grid-template-columns: 1fr 1fr 1fr;
   }
   .plaque {
-    top: calc(64px + var(--safe-top));
+    top: max(64px, calc(var(--safe-tl) + 6px));
   }
   .shop {
     top: calc(10px + var(--safe-top));

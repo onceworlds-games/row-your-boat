@@ -158,14 +158,17 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   // ---------------------------------------------------------------- layout around the platform
 
   function applyInsets() {
-    const ins = { top: 0, left: 0, right: 0, bottom: 0 };
+    // `tl`: how far down the platform's buttons reach in the top-left corner (the score sits under them)
+    const ins = { top: 0, left: 0, right: 0, bottom: 0, tl: 70 };
     const lobbyScreen = screen === 'dock' && (!net || net.match.phase === 'lobby');
     if (!Array.isArray(reserved)) ins.bottom = lobbyScreen ? 88 : 0;
     else {
+      ins.tl = 0;
       for (const a of reserved) {
         if (!a || !finite(a.y) || !finite(a.h)) continue;
         if (a.kind === 'lobby') ins.bottom = Math.max(ins.bottom, H - a.y);
         else if (a.y < 140 && finite(a.x) && finite(a.w) && a.x + a.w > W * 0.55) ins.top = Math.max(ins.top, a.y + a.h);
+        else if (a.y < 140 && finite(a.x) && a.x < W * 0.45) ins.tl = Math.max(ins.tl, Math.min(160, a.y + a.h));
       }
     }
     ui.setInsets(ins);
@@ -398,7 +401,9 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   function makeAttract() {
     const seats = ROWER_NAMES.map((name, i) => ({ id: `a${i}`, name, bot: true, skill: 0.45 + i * 0.08, slot: i }));
     const start = performance.now();
-    const r = makeRun({ kind: 'attract', key: `attract:${Math.floor(start)}`, n: 1, seats, meId: null, source: (perf) => (perf - start) / 1000 - 1 });
+    // the title rows tonight's stream, so the first thing seen changes every night
+    const tn = tonightOf(nightNow());
+    const r = makeRun({ kind: 'attract', key: `attract:${Math.floor(start)}`, n: tn.n, twist: tn.twist, seats, meId: null, source: (perf) => (perf - start) / 1000 - 1 });
     for (const s of seats) r.sim.simulate(s.id);
     return r;
   }
@@ -530,7 +535,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     // the camera
     const portrait = H > W;
     let cam;
-    if (r.kind === 'attract') cam = { mode: 'title', portrait };
+    if (r.kind === 'attract') cam = { mode: 'title', portrait, boat: focus };
     else if (phase === 'results') cam = { mode: 'results', portrait };
     else if (t < 0) cam = { mode: 'intro', k: (t + INTRO) / INTRO, portrait, boat: focus };
     else if ((me && r.myFin !== null && t > r.myFin + 0.8) || phase === 'roundEnd') cam = { mode: 'finish', portrait, boat: focus };

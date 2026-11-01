@@ -82,7 +82,7 @@ void main() {
 }`;
 const SKY_FRAG = /* glsl */ `
 uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uBot; uniform vec3 uMoonDir; uniform vec3 uMoonCol; uniform float uSun;
-uniform vec3 uBand; uniform float uBandAmt; uniform float uTime; uniform float uMoonSize; uniform float uMoonOn;
+uniform vec3 uBand; uniform float uBandAmt; uniform float uTime; uniform float uMoonSize; uniform float uMoonOn; uniform float uInMirror;
 varying vec3 vDir;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -111,7 +111,14 @@ void main() {
   // the disc, with soft seas on its face
   float r = acos(clamp(dot(d, md), -1.0, 1.0));
   float R = uMoonSize;
-  if (uMoonOn > 0.5 && r < R * 1.1) {
+  if (uInMirror > 0.5) {
+    // seen in the river the moon is a path of light: narrow across, long toward the viewer, never a crisp disc
+    float el = asin(clamp(d.y, -1.0, 1.0)) - asin(clamp(md.y, -1.0, 1.0));
+    float az = acos(clamp(dot(hz, hm), -1.0, 1.0));
+    float path = exp(-pow(az / (R * 1.6), 2.0) - pow(el / (R * 7.0), 2.0));
+    float core = exp(-pow(az / (R * 0.7), 2.0) - pow(el / (R * 2.2), 2.0));
+    c += uMoonCol * (path * 0.55 + core * 0.9) * (1.0 + uSun) * uMoonOn;
+  } else if (uMoonOn > 0.5 && r < R * 1.1) {
     float k = smoothstep(R, R * 0.94, r);
     vec3 t = normalize(cross(md, vec3(0.0, 1.0, 0.0)));
     vec3 b = cross(t, md);
@@ -238,7 +245,7 @@ export function createWorld(canvas, { poster = false } = {}) {
     uniforms: {
       uTop: { value: new THREE.Color() }, uMid: { value: new THREE.Color() }, uBot: { value: new THREE.Color() },
       uMoonDir: { value: new THREE.Vector3(0, 0.4, -1) }, uMoonCol: { value: new THREE.Color() }, uSun: { value: 0 },
-      uBand: { value: new THREE.Color('#b78ad8') }, uBandAmt: { value: 0.2 }, uTime: { value: 0 }, uMoonSize: { value: 0.07 }, uMoonOn: { value: 1 },
+      uBand: { value: new THREE.Color('#b78ad8') }, uBandAmt: { value: 0.2 }, uTime: { value: 0 }, uMoonSize: { value: 0.07 }, uMoonOn: { value: 1 }, uInMirror: { value: 0 },
     },
     side: THREE.BackSide,
     depthWrite: false,
@@ -423,7 +430,9 @@ export function createWorld(canvas, { poster = false } = {}) {
     rc.projectionMatrixInverse.copy(pm).invert();
     renderer.setRenderTarget(mirror.rt);
     renderer.clear();
+    skyMat.uniforms.uInMirror.value = 1;
     renderer.render(scene, rc);
+    skyMat.uniforms.uInMirror.value = 0;
     renderer.setRenderTarget(null);
   }
 

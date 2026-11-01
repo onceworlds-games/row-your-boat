@@ -18,7 +18,7 @@ const GROUND = {
   bedtime: { map: 'floor', tile: 3.2, swap: true, color: '#f0c49a', bright: 1.7, rough: 0.8, ns: 0.9 },
   garden: { normal: 'blanket', tile: 1.6, color: '#ffffff', rough: 0.95, ns: 0.6, vc: ['#2e5232', '#466f3c', '#5d8646'] },
   teatime: { map: 'tablecloth', tile: 6.5, color: '#fff4f0', rough: 0.85, ns: 0.8 },
-  staircase: { map: 'marble', tile: 7, color: '#c7c1d8', rough: 0.28, ns: 0.6 },
+  staircase: { map: 'marble', tile: 7, color: '#c7c1d8', rough: 0.5, ns: 0.6, env: 0.25 },
   cloudbank: { normal: 'blanket', tile: 3.4, color: '#ffffff', rough: 0.95, ns: 1.2, vc: ['#eef0fb', '#d9def4', '#c3caea'] },
   library: { map: 'carpet', tile: 3, color: '#ff9a8a', rough: 0.95, ns: 1.4 },
   clockwork: { normal: 'plate', tile: 2.6, color: '#ffffff', rough: 0.62, metal: 0.3, ns: 1, env: 0.3, vc: ['#a8823a', '#b8913f', '#8f6e33'] },
@@ -292,10 +292,91 @@ function paperLantern() {
 
 const TOY = ['#F2A7B6', '#9CC5A1', '#FFB547', '#B7A5E8', '#F4EBD0', '#E5533D', '#7fb3d5'];
 
+/** Alphabet blocks: a raised border and a letter or picture on every face (tinted by the block's colour). */
+let blockTex = null;
+function blockTexture() {
+  if (blockTex) return blockTex;
+  const c = document.createElement('canvas');
+  c.width = 768;
+  c.height = 512;
+  const g = c.getContext('2d');
+  const marks = ['A', 'B', 'C', 'moon', 'star', 'Z'];
+  marks.forEach((mk, i) => {
+    const x0 = (i % 3) * 256;
+    const y0 = Math.floor(i / 3) * 256;
+    g.fillStyle = '#d6d6d6';
+    g.fillRect(x0, y0, 256, 256);
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.roundRect(x0 + 22, y0 + 22, 212, 212, 18);
+    g.fill();
+    g.strokeStyle = '#b4b4b4';
+    g.lineWidth = 5;
+    g.stroke();
+    g.fillStyle = '#3a3358';
+    const cx = x0 + 128;
+    const cy = y0 + 132;
+    if (mk === 'moon') {
+      g.beginPath();
+      g.arc(cx, cy, 70, 0, Math.PI * 2);
+      g.fill();
+      g.globalCompositeOperation = 'destination-out';
+      g.beginPath();
+      g.arc(cx + 34, cy - 22, 62, 0, Math.PI * 2);
+      g.fill();
+      g.globalCompositeOperation = 'source-over';
+      // what was cut is paper again
+      g.fillStyle = '#ffffff';
+      g.globalCompositeOperation = 'destination-over';
+      g.fillRect(x0, y0, 256, 256);
+      g.globalCompositeOperation = 'source-over';
+    } else if (mk === 'star') {
+      g.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const a = -Math.PI / 2 + (k / 10) * Math.PI * 2;
+        const r = k % 2 ? 32 : 78;
+        g.lineTo(cx + Math.cos(a) * r, cy - 4 + Math.sin(a) * r);
+      }
+      g.closePath();
+      g.fill();
+    } else {
+      g.font = '900 170px Georgia, "Times New Roman", serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(mk, cx, cy + 8);
+    }
+  });
+  blockTex = new THREE.CanvasTexture(c);
+  blockTex.colorSpace = THREE.SRGBColorSpace;
+  blockTex.anisotropy = 4;
+  return blockTex;
+}
+
+/** A rounded block whose six faces each take one cell of the block texture. */
+function blockGeometry(size, r) {
+  const g = G.rbox(size, size, size, r, 3);
+  const uv = g.attributes.uv;
+  // a box keeps each face's vertices to itself (in the order +x, -x, +y, -y, +z, -z): move each face's 0-1 square
+  // into its own cell of the 3 x 2 texture
+  const faceOf = new Int8Array(uv.count).fill(-1);
+  g.groups.forEach((gr, face) => {
+    for (let i = gr.start; i < gr.start + gr.count; i++) faceOf[g.index ? g.index.getX(i) : i] = face;
+  });
+  for (let i = 0; i < uv.count; i++) {
+    const f = faceOf[i];
+    if (f < 0) continue;
+    const u = Math.min(1, Math.max(0, uv.getX(i)));
+    const v = Math.min(1, Math.max(0, uv.getY(i)));
+    uv.setXY(i, (u + (f % 3)) / 3, (v + (1 - Math.floor(f / 3))) / 2);
+  }
+  uv.needsUpdate = true;
+  return g;
+}
+
 function rockLook(id) {
   switch (id) {
     case 'bedtime':
-      return { geo: G.rbox(1.6, 1.6, 1.6, 0.18), colors: TOY, y: 0.35, tilt: 0.25 };
+      return { geo: blockGeometry(1.6, 0.14), map: blockTexture(), colors: TOY, y: 0.35, tilt: 0.25 };
     case 'teatime':
       return { geo: G.rbox(1.5, 1.5, 1.5, 0.12), colors: ['#fbf7ef', '#f3eee4', '#fffaf3'], y: 0.4, tilt: 0.3 };
     case 'staircase':
@@ -344,10 +425,50 @@ function logLook(id) {
       return { geo: kit.build().userData.solid.geometry, color: '#ffffff', vc: true, metal: 0.4 };
     }
     case 'stars': {
-      const kit = createKit();
-      kit.add(G.sphere(0.5, 12, 8), '#fff3c8', { x: 0.45 });
-      kit.add(G.cone(0.45, 1, 10), '#9fb4ff', { x: -0.05, rz: Math.PI / 2 });
-      return { geo: kit.build().userData.solid.geometry, color: '#ffffff', vc: true, glow: true };
+      // a fallen star drifting with its tail: an upright five-pointed star (facing along the river; thin, since the
+      // length scales along x) and a tapering tail that cools from gold to blue
+      const sh = new THREE.Shape();
+      for (let k = 0; k < 10; k++) {
+        const a = Math.PI / 2 + (k / 10) * Math.PI * 2;
+        const r = k % 2 ? 0.3 : 0.72;
+        if (k === 0) sh.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        else sh.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      sh.closePath();
+      const star = new THREE.ExtrudeGeometry(sh, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.06, bevelSegments: 2 });
+      star.translate(0, 0, -0.02);
+      star.rotateY(Math.PI / 2);
+      star.translate(0.42, 0.62, 0);
+      const tail = new THREE.ConeGeometry(0.34, 0.95, 12, 4, true);
+      tail.rotateZ(Math.PI / 2);
+      tail.translate(-0.06, 0.55, 0);
+      const parts = [star.toNonIndexed(), tail.toNonIndexed()];
+      const gold = new THREE.Color('#fff1c0');
+      const blue = new THREE.Color('#6f86ff');
+      const cc = new THREE.Color();
+      for (const g of parts) {
+        if (g.attributes.uv) g.deleteAttribute('uv');
+        const P = g.attributes.position;
+        const col = new Float32Array(P.count * 3);
+        for (let i = 0; i < P.count; i++) {
+          cc.copy(blue).lerp(gold, Math.min(1, Math.max(0, (P.getX(i) + 0.53) / 0.9)));
+          col.set([cc.r, cc.g, cc.b], i * 3);
+        }
+        g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      }
+      let n = 0;
+      for (const g of parts) n += g.attributes.position.count;
+      const geo = new THREE.BufferGeometry();
+      for (const [name, size] of [['position', 3], ['normal', 3], ['color', 3]]) {
+        const arr = new Float32Array(n * size);
+        let o = 0;
+        for (const g of parts) {
+          arr.set(g.attributes[name].array, o);
+          o += g.attributes[name].array.length;
+        }
+        geo.setAttribute(name, new THREE.BufferAttribute(arr, size));
+      }
+      return { geo, color: '#ffffff', vc: true, glow: true, double: true };
     }
     default: {
       const kit = createKit();
@@ -389,7 +510,7 @@ export function createRiver(course, id, theme, opts = {}) {
   const rocks = course.rocks;
   const stackN = look.stack ?? 1;
   if (rocks.length) {
-    const mat = new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: look.metal ?? 0 });
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: look.metal ?? 0, map: look.map ?? null });
     const im = new THREE.InstancedMesh(look.geo, mat, rocks.length * stackN);
     let n = 0;
     for (const o of rocks) {
@@ -418,7 +539,7 @@ export function createRiver(course, id, theme, opts = {}) {
   let logMesh = null;
   if (course.logs.length) {
     const ll = logLook(id);
-    const mat = ll.glow ? new THREE.MeshBasicMaterial({ vertexColors: !!ll.vc }) : new THREE.MeshStandardMaterial({ vertexColors: !!ll.vc, roughness: 0.55, metalness: ll.metal ?? 0 });
+    const mat = ll.glow ? new THREE.MeshBasicMaterial({ vertexColors: !!ll.vc, side: ll.double ? THREE.DoubleSide : THREE.FrontSide }) : new THREE.MeshStandardMaterial({ vertexColors: !!ll.vc, roughness: 0.55, metalness: ll.metal ?? 0 });
     logMesh = new THREE.InstancedMesh(ll.geo, mat, course.logs.length);
     logMesh.castShadow = true;
     logMesh.frustumCulled = false;
@@ -561,8 +682,9 @@ export function createRiver(course, id, theme, opts = {}) {
     return t;
   })();
   const mistCol = new THREE.Color(theme.fog).lerp(new THREE.Color('#ffffff'), 0.45);
+  const mistOpacity = id === 'cloudbank' ? 0.4 : 0.15;
   const mist = Array.from({ length: 12 }, (_, i) => {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, color: mistCol, transparent: true, opacity: id === 'cloudbank' ? 0.4 : 0.15, depthWrite: false, fog: true }));
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, color: mistCol, transparent: true, opacity: mistOpacity, depthWrite: false, fog: true }));
     sp.scale.set(24, 5, 1);
     sp.layers.set(NO_MIRROR);
     sp.userData = { s: -999, d: 0, k: i };
@@ -603,6 +725,9 @@ export function createRiver(course, id, theme, opts = {}) {
         }
         const p = course.point(u.s, u.d + Math.sin(now * 0.1 + u.k) * 1.5);
         m.position.set(p.x, 0.6 + (u.k % 3) * 0.3, p.z);
+        // mist is seen at a distance: close to the camera it would be a white wall
+        const near = Math.min(1, Math.max(0, (u.s - focusS - 4) / 14));
+        m.material.opacity = mistOpacity * near * near * (3 - 2 * near);
       }
     },
     /** Pendulums at beat position B. */
@@ -643,20 +768,23 @@ function buildArch(course, s, count, theme, kind) {
     kit.add(G.box(len + 0.05, 0.34, 0.36), wood, { x: (x0 + x1) / 2, y: (y0 + y1) / 2, rz: Math.atan2(y1 - y0, x1 - x0) }, { parent: frame });
   }
   group.add(kit.build(`arch-${kind}`));
-  // its lanterns, hung from the beam
-  const lit = new THREE.MeshStandardMaterial({ color: '#ffe2b0', emissive: theme.lantern, emissiveIntensity: 1.7, roughness: 0.6 });
-  // unlit: paper that still shows a little warmth, never a black hole in the sky
-  const dark = new THREE.MeshStandardMaterial({ color: '#b89a74', emissive: theme.lantern, emissiveIntensity: 0.12, roughness: 0.8 });
-  const geo = G.sphere(kind === 'finish' ? 0.42 : 0.5, 14, 10);
-  geo.scale(1, 1.3, 1);
+  // its lanterns, hung from the beam: the same ribbed paper lanterns as the banks, bigger
+  const warm = new THREE.Color(theme.lantern).lerp(new THREE.Color('#fff2d8'), 0.35);
+  const lit = new THREE.MeshBasicMaterial({ vertexColors: true, color: warm.clone().multiplyScalar(2.1), fog: true });
+  // unlit: pale paper that still shows a little warmth, never a black hole in the sky
+  const dark = new THREE.MeshStandardMaterial({ vertexColors: true, color: '#e6d5b4', emissive: theme.lantern, emissiveIntensity: 0.1, roughness: 0.85 });
+  const geo = paperLantern();
+  const k = kind === 'finish' ? 1.45 : 1.65;
+  geo.scale(k, k, k);
   const lamps = [];
   for (let i = 0; i < count; i++) {
     const u = (i + 1) / (count + 1);
     const x = -span + 2 * span * u;
-    const y = H + Math.sin(u * Math.PI) * 1.1 - 0.9 - (kind === 'finish' ? Math.sin(u * Math.PI * 3) * 0.2 : 0);
+    const y = H + Math.sin(u * Math.PI) * 1.1 - 0.17 - (kind === 'finish' ? Math.sin(u * Math.PI * 3) * 0.2 : 0);
     const m = new THREE.Mesh(geo, dark);
     const p = new THREE.Vector3(x, y, 0).applyMatrix4(frame);
     m.position.copy(p);
+    m.rotation.y = -a.h + i * 0.7;
     group.add(m);
     lamps.push(m);
   }

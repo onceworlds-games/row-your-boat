@@ -81,6 +81,7 @@ export function createUI(root, tagRoot) {
       insets = v;
       document.documentElement.style.setProperty('--safe-top', `${Math.max(0, v.top)}px`);
       document.documentElement.style.setProperty('--safe-bottom', `${Math.max(0, v.bottom)}px`);
+      document.documentElement.style.setProperty('--safe-tl', `${Math.max(0, v.tl ?? 0)}px`);
     },
     get insets() {
       return insets;
