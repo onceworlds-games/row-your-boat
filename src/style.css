@@ -40,6 +40,13 @@ body {
   height: 100%;
   display: block;
   touch-action: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+/* the world fades in once its first frame is drawn (until then the night colour, not a black box) */
+body.drawn #cv {
+  opacity: 1;
 }
 
 #tags,
@@ -1213,7 +1220,7 @@ button:focus-visible {
   .signpost {
     width: min(300px, calc(100vw - 28px));
     left: 50%;
-    top: calc(84px + var(--safe-top));
+    top: calc(100px + var(--safe-top));
     transform: translateX(-50%) rotate(-1deg);
   }
   .signpost .post {
@@ -1237,7 +1244,8 @@ button:focus-visible {
   }
   .title {
     left: 24px;
-    top: 40%;
+    top: calc(76px + var(--safe-top));
+    transform: none;
   }
 }
 
@@ -1260,7 +1268,11 @@ button:focus-visible {
     font-size: 64px;
   }
   .title {
-    top: 46%;
+    top: 55%;
+  }
+  .title h1,
+  .title .reflect {
+    font-size: min(10.5vw, 18vh);
   }
 }
 

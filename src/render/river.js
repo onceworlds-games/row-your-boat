@@ -468,8 +468,9 @@ function buildArch(course, s, count, theme, kind) {
   }
   group.add(kit.build(`arch-${kind}`));
   // its lanterns, hung from the beam
-  const lit = new THREE.MeshStandardMaterial({ color: '#ffe2b0', emissive: theme.lantern, emissiveIntensity: 2.2, roughness: 0.6 });
-  const dark = new THREE.MeshStandardMaterial({ color: '#3a2a2a', emissive: '#000000', roughness: 0.8 });
+  const lit = new THREE.MeshStandardMaterial({ color: '#ffe2b0', emissive: theme.lantern, emissiveIntensity: 1.7, roughness: 0.6 });
+  // unlit: paper that still shows a little warmth, never a black hole in the sky
+  const dark = new THREE.MeshStandardMaterial({ color: '#b89a74', emissive: theme.lantern, emissiveIntensity: 0.12, roughness: 0.8 });
   const geo = G.sphere(kind === 'finish' ? 0.42 : 0.5, 14, 10);
   geo.scale(1, 1.3, 1);
   const lamps = [];

@@ -1282,6 +1282,9 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
 
   // ---------------------------------------------------------------- the Dock
 
+  // the Dock's berths, yours first: just right of the middle (the signpost stands on the left), the left edge last
+  const DOCK_BERTHS = [3, 4, 2, 5, 1, 0];
+
   function dockFrame(perf, dt, now) {
     if (screen === 'timing') timingStep(perf);
     const settings = room?.settings ?? {};
@@ -1336,7 +1339,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     }
     // the boats at their berths
     const boats = dockPlayers.map((p, i) => {
-      const slot = startSlot(course, i, 6);
+      const slot = startSlot(course, DOCK_BERTHS[i], 6);
       const pt = course.point(slot.s, slot.d);
       return { id: p.id, x: pt.x, z: pt.z, h: pt.h, s: slot.s, v: 0, c: 0, k: 0, ls: 0, lq: 0, f: 0, ft: 0 };
     });
@@ -1352,7 +1355,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       const berths = [];
       if (invite) {
         for (let i = boats.length; i < 6; i++) {
-          const slot = startSlot(course, i, 6);
+          const slot = startSlot(course, DOCK_BERTHS[i], 6);
           const pt = course.point(slot.s, slot.d);
           const pr = scene.project(pt.x, 1.2, pt.z, W, H);
           if (pr) berths.push({ x: pr.x, y: pr.y });

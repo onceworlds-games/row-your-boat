@@ -207,15 +207,22 @@ export function createScene(canvas, { poster = false } = {}) {
       const t = c.now ?? 0;
       const s = Math.max(course.start, Math.min(course.total - 30, (c.focusS ?? course.start) + 11 + Math.sin(t * 0.07) * 4));
       const a = course.at(s);
-      const d = Math.sin(t * 0.05) * a.hw * 0.55;
+      // near the middle of the river (the banks' lamp posts stay out of the lens), stepping round a rock just in front
+      let d = Math.sin(t * 0.05) * a.hw * 0.25;
+      for (const o of course.rocks) {
+        if (o.s < s - 7 || o.s > s + 1.5 || Math.abs(o.d - d) > o.r + 2.4) continue;
+        const side = o.d > 0 ? -1 : 1;
+        d = Math.max(-a.hw * 0.7, Math.min(a.hw * 0.7, o.d + side * (o.r + 2.4)));
+      }
       const p = course.point(s, d);
       px = p.x;
       pz = p.z;
-      py = 1.5 + Math.sin(t * 0.11) * 0.35;
+      // a tall screen looks down on the river from higher, so the boats sit under the title
+      py = (c.portrait ? 4 : 2) + Math.sin(t * 0.11) * 0.3;
       const q = course.point(Math.max(0, s - 14), d * 0.2);
       lx = q.x;
       lz = q.z;
-      ly = 1.2;
+      ly = c.portrait ? 0.6 : 1.2;
       follow = 1 - Math.exp(-dt * 1.5);
     } else if (c.mode === 'dock') {
       const s = course.start - 4 - (c.portrait ? 17 : 12);

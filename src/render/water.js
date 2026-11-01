@@ -110,7 +110,7 @@ void main() {
       float vline = exp(-vq * vq);
       float fade = exp(-back * 0.18) * clamp(b.w / 6.0, 0.0, 1.0);
       float churn = exp(-across * across / 0.5) * exp(-back * 0.45) * clamp(b.w / 5.0, 0.0, 1.0);
-      col = mix(col, uFoam, clamp((vline * 0.26 * (0.6 + 0.4 * noise(vec2(back * 2.0, across * 3.0)))) * fade + churn * 0.28, 0.0, 0.6));
+      col = mix(col, uFoam * 0.8, clamp((vline * 0.24 * (0.6 + 0.4 * noise(vec2(back * 2.0, across * 3.0)))) * fade + churn * 0.26, 0.0, 0.5));
     }
   }
   // warm streaks from the lanterns
@@ -150,8 +150,9 @@ void main() {
     if (r.z > 0.5 && r.z < 1.5) c = vec3(1.0, 0.98, 0.9) * 1.7;
     else if (r.z > 1.5 && r.z < 2.5) c = vec3(1.0, 0.66, 0.24) * 1.5;
     else if (r.z > 2.5) {
+      // a miss: the ripple breaks into short red dashes, thin and without a trail
       c = vec3(0.95, 0.3, 0.22) * 1.4;
-      shape *= step(0.45, noise(vec2(d * 1.6, s * 0.5 + uTime)));
+      shape = exp(-dist * dist / 0.12) * step(0.4, fract(lat * 0.5 + 0.25));
     }
     col += c * shape * r.y * latF * uRipOn;
   }

@@ -58,9 +58,15 @@ async function boot() {
     console.warn('[row] could not join', err);
     return null;
   });
+  const ui = createUI(document.getElementById('ui'), document.getElementById('tags'));
+  ui.title(true);
   // Building the world blocks the page for a moment (seconds on a slow phone): let the SDK finish its handshake with the
   // platform and the room answer first, or a slow page can miss the handshake and play alone.
-  await Promise.race([joining, new Promise((r) => setTimeout(r, 6000))]);
+  const early = await Promise.race([joining, new Promise((r) => setTimeout(() => r(null), 6000))]);
+  // the title has no Ready strip, not even while the world is still being built
+  try {
+    early?.hideLobby();
+  } catch {}
   try {
     ow.ui.setLook({ accent: '#FFB547', panel: '#141A3A', text: '#F4EBD0' });
   } catch {}
@@ -70,7 +76,6 @@ async function boot() {
   const store = createStore();
   const loading = store.load();
   const scene = createScene(canvas);
-  const ui = createUI(document.getElementById('ui'), document.getElementById('tags'));
   const game = createGame({ ow, scene, ui, store, flags: flagsOf() });
 
   const fit = () => {
@@ -97,9 +102,12 @@ async function boot() {
   });
 
   // The world paints at once; the title's button waits for the save (the profile).
+  let drawn = false;
   const loop = (perf) => {
     try {
       game.frame(perf);
+      if (!drawn) document.body.classList.add('drawn');
+      drawn = true;
     } catch (err) {
       console.error(err);
     }
@@ -112,9 +120,14 @@ async function boot() {
   const room = await joining;
   if (room) game.attach(room);
   else game.lost();
+  // The platform can seat this page in another room (a party going on together): carry on there.
+  try {
+    ow.rooms.on('moved', (r) => game.attach(r));
+  } catch {}
 }
 
 if (q.has('poster')) {
+  document.body.classList.add('drawn');
   import('./poster.js').then((m) => m.drawPoster(canvas, q)).catch((err) => {
     document.body.dataset.error = String(err?.stack || err).slice(0, 400);
     document.body.dataset.ready = 'error';

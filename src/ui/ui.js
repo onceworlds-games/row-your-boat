@@ -76,8 +76,10 @@ export function createUI(root, tagRoot) {
       const reflect = h('div', 'reflect display');
       reflect.append(h('div', '', 'Boat'));
       reflect.setAttribute('aria-hidden', 'true');
-      const row = button('oar', 'Row', onRow, 'Space');
-      box.append(h1, reflect, row);
+      // without onRow (the world still loading) the title shows without its button
+      const row = onRow ? button('oar', 'Row', onRow, 'Space') : null;
+      box.append(h1, reflect);
+      if (row) box.append(row);
       if (stars > 0) {
         const s = h('div', 'stars outlined');
         s.append(svgEl(ICON.starOn, 'inl'), document.createTextNode(` ${stars}`));

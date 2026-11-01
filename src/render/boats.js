@@ -68,9 +68,10 @@ function hullGeometry(paint) {
     return g;
   };
   const kit = createKit();
-  // transom: a flat painted board at the stern
+  // transom: a wooden board at the stern with a band of the boat's paint along its top (a flat painted board read as a brick)
   const tw = halfWidth(0);
-  kit.add(G.box(tw * 2 - 0.04, depthAt(0) * 0.9, 0.05), paint, { y: SHEER - depthAt(0) * 0.45, z: L / 2 - 0.01 });
+  kit.add(G.box(tw * 2 - 0.04, depthAt(0) * 0.9, 0.05), '#6e4630', { y: SHEER - depthAt(0) * 0.45, z: L / 2 - 0.01 });
+  kit.add(G.box(tw * 2 - 0.01, 0.1, 0.07), paint, { y: SHEER - 0.06, z: L / 2 });
   // seats, floorboards, gunwale caps
   kit.add(G.box(1.18, 0.06, 0.32), '#a77650', { y: SHEER - 0.16, z: 0.2 });
   kit.add(G.box(0.8, 0.06, 0.26), '#a77650', { y: SHEER - 0.13, z: 1.25 });
