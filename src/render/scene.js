@@ -8,13 +8,14 @@ import { createRiver } from './river.js';
 import { createDream } from './dreams.js';
 import { createBoatMesh } from './boats.js';
 import { createFx } from './fx.js';
+import { createBlooms } from './blooms.js';
 import { themeOf } from './themes.js';
 import { G } from './kit.js';
 
 const v3 = new THREE.Vector3();
 const v4 = new THREE.Vector3();
 const look = new THREE.Vector3();
-const KINDS = ['free', 'perfect', 'good', 'splash', 'both', 'free'];
+const KINDS = ['free', 'perfect', 'good', 'splash', 'both', 'free', 'pull', 'drop'];
 
 export function createScene(canvas, { poster = false } = {}) {
   const world = createWorld(canvas, { poster });
@@ -26,16 +27,19 @@ export function createScene(canvas, { poster = false } = {}) {
   let podium = null;
   let reduced = false;
   let hitstop = 0;
+  let lastNow = 0;
+  let lastFocus = null;
 
   // ---------------------------------------------------------------- loading a stream
 
   function load(stream, course) {
     if (cur && cur.id === stream.id) return cur;
     if (cur) {
-      scene.remove(cur.water.mesh, cur.river.group, cur.dream.group);
+      scene.remove(cur.water.mesh, cur.river.group, cur.dream.group, cur.blooms.group);
       cur.water.dispose();
       disposeTree(cur.river.group);
       disposeTree(cur.dream.group);
+      disposeTree(cur.blooms.group);
     }
     const theme = themeOf(stream.id);
     world.setTheme(theme, course);
@@ -43,9 +47,10 @@ export function createScene(canvas, { poster = false } = {}) {
     water.setMoon(world.moonDir);
     const river = createRiver(course, stream.id, theme, { density: world.quality === 'low' ? 0.45 : 1, env: world.scene.environment });
     const dream = createDream(course, stream.id, theme);
-    scene.add(water.mesh, river.group, dream.group);
+    const blooms = createBlooms(course);
+    scene.add(water.mesh, river.group, dream.group, blooms.group);
     const lights = [...river.lanterns, ...dream.lights.map((p) => ({ x: p.x, y: p.y, z: p.z, s: course.locate(p.x, p.z).s }))];
-    cur = { id: stream.id, stream, course, theme, water, river, dream, lights };
+    cur = { id: stream.id, stream, course, theme, water, river, dream, blooms, lights };
     fx.clear();
     // shadow casters changed: let materials pick the light setup up
     world.setQuality(world.quality, world.renderer.getPixelRatio());
@@ -314,6 +319,7 @@ export function createScene(canvas, { poster = false } = {}) {
     if (!cur) return;
     const { course, water, river, dream } = cur;
     const now = f.now;
+    lastNow = now;
     let dt = Math.min(0.1, f.dt);
     hitstop = Math.max(0, hitstop - dt);
     const fxDt = hitstop > 0 ? dt * 0.12 : dt;
@@ -357,9 +363,10 @@ export function createScene(canvas, { poster = false } = {}) {
           for (const side of b.ls === 0 ? [-1, 1] : [b.ls]) {
             m.oarTip(side, strokeV);
             fx.oar(strokeV.x, strokeV.z, kind, fxx, fzz, mine);
-            const ring = !mine ? RING.splash : b.ls === 0 && (kind === 'perfect' || kind === 'good') ? RING.pull : kind === 'perfect' ? RING.perfect : kind === 'good' ? RING.good : RING.splash;
+            const ring = !mine ? RING.splash : kind === 'pull' || (b.ls === 0 && (kind === 'perfect' || kind === 'good')) ? RING.pull : kind === 'perfect' ? RING.perfect : kind === 'good' || kind === 'drop' ? RING.good : RING.splash;
             water.ring(strokeV.x, strokeV.z, now, ring);
           }
+          if (kind === 'pull') fx.pull(b.x, b.z, fxx, fzz);
         }
       }
       m.lastK = b.k;
@@ -389,6 +396,7 @@ export function createScene(canvas, { poster = false } = {}) {
         if ((b.rapids ?? 0) > 0.5) fx.foam(b.x, b.z, 0.5);
       }
     }
+    lastFocus = focus;
     if (ghost && f.ghost) {
       ghost.group.visible = true;
       ghost.group.position.set(f.ghost.x, 0, f.ghost.z);
@@ -407,6 +415,7 @@ export function createScene(canvas, { poster = false } = {}) {
     river.update(f.t ?? 0, f.focusS ?? course.start, f.pulse ?? 0, now);
     river.swing(f.B ?? 0);
     dream.tick(now, f.B ?? 0, f.pulse ?? 0);
+    cur.blooms.update(now, f.pulse ?? 0, f.got ?? null);
     const fs = f.focusS ?? course.start;
     lightList.length = 0;
     for (const l of cur.lights) {
@@ -461,6 +470,30 @@ export function createScene(canvas, { poster = false } = {}) {
     hulls,
     get current() {
       return cur;
+    },
+    /** The player took moonbloom i (run: how many in a row from one line). */
+    bloom(i, run = 0) {
+      if (!cur) return;
+      const m = cur.course.blooms?.[i];
+      if (!m) return;
+      cur.blooms.take(i, lastNow);
+      fx.bloom(m.x, m.z, run);
+      cur.water.ring(m.x, m.z, lastNow, RING.bloom);
+    },
+    /** Every bloom back on the water (the same stream rowed again). */
+    resetBlooms() {
+      cur?.blooms.reset();
+    },
+    /** A pull landed: a push in for the surge. */
+    pull() {
+      if (!reduced) camState.punch = Math.min(1.2, camState.punch + 0.2);
+    },
+    /** A merrily rush: sparks wind round the focused boat. */
+    rush() {
+      const b = lastFocus;
+      if (!b) return;
+      fx.rush(b.x, b.z);
+      if (cur) cur.water.ring(b.x, b.z, lastNow, RING.pull);
     },
     /** Shake the camera; (dx, dz) pushes it that way (a bump from a side). */
     shake(amount, dx = 0, dz = 0) {

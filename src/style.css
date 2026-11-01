@@ -572,6 +572,88 @@ button:focus-visible {
   color: var(--rose);
 }
 
+.tally {
+  position: absolute;
+  top: calc(10px + var(--safe-top));
+  left: 16px;
+  pointer-events: none;
+}
+
+.tally .pts {
+  font-size: clamp(34px, 5.4vw, 52px);
+  line-height: 1;
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
+}
+
+.tally .row2 {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.tally .lans {
+  display: flex;
+  gap: 3px;
+}
+
+.tally .lans .l svg {
+  display: block;
+  width: 17px;
+  height: 24px;
+}
+
+.tally .lans .l .paper {
+  fill: #3a4270;
+  transition: fill 0.2s;
+}
+
+.tally .lans .l.on .paper {
+  fill: var(--amber);
+}
+
+.tally .lans.full .l.on .paper {
+  fill: #ffd27a;
+}
+
+.tally .lans .l.on svg {
+  filter: drop-shadow(0 0 6px rgba(255, 181, 71, 0.8));
+}
+
+.tally .lans .l.pop {
+  animation: lanpop 0.45s ease-out;
+}
+
+@keyframes lanpop {
+  0% {
+    transform: scale(1.7) translateY(-4px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.tally .blms {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 800 20px/1 var(--display);
+  font-variation-settings: 'SOFT' 100;
+  color: #dfe8ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.tally .blms .ic svg {
+  display: block;
+  width: 28px;
+  height: 22px;
+}
+
+.tally .blms.pop {
+  animation: lanpop 0.4s ease-out;
+}
+
 .pausebtn {
   position: absolute;
   top: calc(12px + var(--safe-top));
@@ -677,6 +759,16 @@ button:focus-visible {
   color: var(--ember);
 }
 
+.judge.pull {
+  color: #ffc94d;
+  font-size: 32px;
+}
+
+.judge.shave {
+  color: #dfe8ff;
+  font-size: 22px;
+}
+
 .judge.miss {
   color: #a9a8c8;
   font-size: 20px;
@@ -702,8 +794,9 @@ button:focus-visible {
   left: 50%;
   top: 30%;
   transform: translate(-50%, -50%);
-  font-size: clamp(40px, 7vw, 74px);
-  color: var(--amber);
+  font-size: clamp(48px, 9vw, 92px);
+  font-style: italic;
+  color: #ffd27a;
   white-space: nowrap;
   animation: swell 1.2s ease-out forwards;
 }

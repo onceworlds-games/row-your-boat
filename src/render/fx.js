@@ -134,6 +134,13 @@ export function createFx(scene) {
     /** An oar entering the water. kind: perfect, good, splash, both, free. (x, z): the blade; (fx, fz): the boat's forward. */
     oar(x, z, kind, fx, fz, mine = true) {
       if (!mine && R() < 0.5) return;
+      if (kind === 'drop') {
+        // a flick of the blade between the beats: a few bright beads and a glint
+        for (let i = 0; i < 7 * scale; i++) spray.emit({ x: x + (R() - 0.5) * 0.3, y: 0.08, z: z + (R() - 0.5) * 0.3, vx: (R() - 0.5) * 1.2 - fx * 0.8, vy: 1.6 + R() * 1.4, vz: (R() - 0.5) * 1.2 - fz * 0.8, life: 0.55, size: 0.09 + R() * 0.07, color: '#f3f6ff', a: 0.9, grav: 9 });
+        if (mine) for (let i = 0; i < 3 * scale; i++) glow.emit({ x, y: 0.3 + R() * 0.3, z, vx: (R() - 0.5) * 0.8, vy: 0.9 + R() * 0.6, vz: (R() - 0.5) * 0.8, life: 0.45, size: 0.28, color: '#cfe0ff', a: 1, drag: 2 });
+        return;
+      }
+      if (kind === 'pull') kind = 'perfect';
       const n = Math.round((kind === 'splash' ? 26 : kind === 'perfect' ? 16 : 11) * scale);
       for (let i = 0; i < n; i++) {
         const up = kind === 'splash' ? 2.4 + R() * 2.6 : 1.4 + R() * 1.8;
@@ -152,6 +159,42 @@ export function createFx(scene) {
           const a = (i / 8) * Math.PI * 2;
           spray.emit({ x, y: 0.15, z, vx: Math.cos(a) * 1.6, vz: Math.sin(a) * 1.6, vy: 0.3, life: 0.6, size: 0.6, color: '#c9a0a0', a: 0.35, drag: 3, grow: 1.5 });
         }
+      }
+    },
+    /** A pull: both blades drive at once; a gold fan of water behind them and sparks off the blades. */
+    pull(x, z, fx, fz) {
+      for (let i = 0; i < 34 * scale; i++) {
+        const side = R() < 0.5 ? -1 : 1;
+        const out = 0.6 + R() * 1.6;
+        spray.emit({ x: x - fx * 0.6 + fz * side * 1.8, y: 0.1, z: z - fz * 0.6 - fx * side * 1.8, vx: -fx * (2.4 + R() * 2) + fz * side * out, vy: 1.2 + R() * 2.2, vz: -fz * (2.4 + R() * 2) - fx * side * out, life: 0.7 + R() * 0.3, size: 0.12 + R() * 0.16, color: R() < 0.25 ? '#ffe6b0' : '#eef2ff', a: 0.9, grav: 9 });
+      }
+      for (let i = 0; i < 16 * scale; i++) {
+        const side = R() < 0.5 ? -1 : 1;
+        glow.emit({ x: x + fz * side * 1.9, y: 0.3 + R() * 0.5, z: z - fx * side * 1.9, vx: (R() - 0.5) * 1.6 - fx, vy: 0.8 + R() * 1.4, vz: (R() - 0.5) * 1.6 - fz, life: 0.6 + R() * 0.3, size: 0.32 + R() * 0.25, color: R() < 0.5 ? '#FFC94D' : '#fff3d6', a: 1, drag: 2 });
+      }
+    },
+    /** A moonbloom taken: its petals scatter up in a spiral of pale light; a run of them burns warmer. */
+    bloom(x, z, run = 0) {
+      const warm = Math.min(1, run / 4);
+      const n = Math.round((18 + run * 3) * scale);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + R() * 0.3;
+        const sp = 0.9 + R() * 1.3;
+        glow.emit({ x: x + Math.cos(a) * 0.25, y: 0.25, z: z + Math.sin(a) * 0.25, vx: Math.cos(a) * sp, vy: 1.4 + R() * 2.2, vz: Math.sin(a) * sp, life: 0.8 + R() * 0.5, size: 0.22 + R() * 0.22, color: R() < warm * 0.6 ? '#FFD27A' : R() < 0.5 ? '#EAF0FF' : '#BFD3FF', a: 1, grav: 1.2, drag: 1.6 });
+      }
+      for (let i = 0; i < 6 * scale; i++) spray.emit({ x: x + (R() - 0.5) * 0.5, y: 0.1, z: z + (R() - 0.5) * 0.5, vx: (R() - 0.5) * 1.4, vy: 1 + R() * 1.4, vz: (R() - 0.5) * 1.4, life: 0.9, size: 0.12, color: '#FFD7A8', a: 0.9, grav: 4, drag: 1 });
+    },
+    /** A merrily rush: golden sparks wind up around the boat and a ring of light runs out over the water. */
+    rush(x, z) {
+      const n = Math.round(60 * scale);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 6;
+        const r = 1.4 + (i / n) * 1.2;
+        glow.emit({ x: x + Math.cos(a) * r, y: 0.3 + (i / n) * 1.6, z: z + Math.sin(a) * r, vx: -Math.sin(a) * 2.2, vy: 1.6 + R() * 1.2, vz: Math.cos(a) * 2.2, life: 0.9 + R() * 0.6, size: 0.3 + R() * 0.3, color: R() < 0.6 ? '#FFC94D' : '#FFF1C8', a: 1, grav: 0.6, drag: 1.2 });
+      }
+      for (let i = 0; i < 28 * scale; i++) {
+        const a = (i / 28) * Math.PI * 2;
+        spray.emit({ x: x + Math.cos(a) * 1.2, y: 0.12, z: z + Math.sin(a) * 1.2, vx: Math.cos(a) * 5, vy: 0.6 + R() * 0.8, vz: Math.sin(a) * 5, life: 0.7, size: 0.18, color: '#fff4d8', a: 0.8, grav: 3, drag: 1.5 });
       }
     },
     /** A bump: water thrown up at the hull. */

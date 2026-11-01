@@ -207,6 +207,9 @@ const BADGES = {
   choir: { bg: '#9CC5A1', ring: INK, draw: voices },
   dreamer: { bg: '#232a5c', ring: CREAM, draw: moon },
   'life-is-but-a-dream': { bg: '#B7A5E8', ring: INK, draw: crescentStars },
+  'merrily-rush': { bg: '#FFC94D', ring: INK, draw: droplets },
+  bouquet: { bg: '#2f6b4a', ring: CREAM, draw: lily },
+  'close-shave': { bg: '#5c6a94', ring: CREAM, draw: shave },
 };
 
 function badge(canvas, id, W, H) {
@@ -458,6 +461,101 @@ function crescentStars(g, r) {
   g.strokeStyle = INK;
   g.lineWidth = r * 0.05;
   star(g, r * 0.08, 0, r * 0.32);
+  g.fill();
+  g.stroke();
+}
+
+function drop(g, x, y, s) {
+  g.beginPath();
+  g.moveTo(x, y - s);
+  g.bezierCurveTo(x + s * 0.5, y - s * 0.35, x + s * 0.72, y + s * 0.05, x + s * 0.72, y + s * 0.3);
+  g.arc(x, y + s * 0.3, s * 0.72, 0, Math.PI);
+  g.bezierCurveTo(x - s * 0.72, y + s * 0.05, x - s * 0.5, y - s * 0.35, x, y - s);
+  g.closePath();
+}
+
+function droplets(g, r) {
+  // the merrily bar: three beads of water leaping in a rising arc off a wave
+  g.strokeStyle = INK;
+  g.lineWidth = r * 0.09;
+  g.fillStyle = '#2B3F7C';
+  g.beginPath();
+  g.moveTo(-r * 0.86, r * 0.45);
+  g.bezierCurveTo(-r * 0.5, r * 0.2, -r * 0.2, r * 0.75, r * 0.15, r * 0.45);
+  g.bezierCurveTo(r * 0.45, r * 0.2, r * 0.7, r * 0.55, r * 0.86, r * 0.42);
+  g.lineTo(r * 0.7, r * 0.8);
+  g.lineTo(-r * 0.7, r * 0.8);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  g.lineWidth = r * 0.045;
+  for (const [x, y, s] of [[-0.42, -0.02, 0.2], [0.02, -0.38, 0.24], [0.46, -0.06, 0.2]]) {
+    g.fillStyle = CREAM;
+    drop(g, x * r, y * r, s * r);
+    g.fill();
+    g.stroke();
+  }
+  g.fillStyle = CREAM;
+  for (const [x, y, s] of [[-0.62, -0.5, 0.09], [0.6, -0.56, 0.1], [0.26, -0.78, 0.07]]) {
+    star(g, x * r, y * r, s * r);
+    g.fill();
+    g.stroke();
+  }
+}
+
+function lily(g, r) {
+  g.strokeStyle = INK;
+  g.lineWidth = r * 0.05;
+  g.fillStyle = '#4f9a6d';
+  g.beginPath();
+  g.ellipse(0, r * 0.38, r * 0.78, r * 0.3, 0, 0.35, Math.PI * 2 - 0.1);
+  g.lineTo(0, r * 0.38);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  const petal = (a, len, w, col) => {
+    g.save();
+    g.translate(0, r * 0.22);
+    g.rotate(a);
+    g.fillStyle = col;
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.quadraticCurveTo(w * r, -len * r * 0.5, 0, -len * r);
+    g.quadraticCurveTo(-w * r, -len * r * 0.5, 0, 0);
+    g.fill();
+    g.stroke();
+    g.restore();
+  };
+  for (const a of [-1.15, 1.15, -0.62, 0.62]) petal(a, 0.62, 0.26, '#BFD3FF');
+  for (const a of [-0.3, 0.3, 0]) petal(a, 0.78, 0.24, '#EAF0FF');
+  g.fillStyle = '#FFE58A';
+  circle(g, 0, r * 0.14, r * 0.1);
+  g.fill();
+  g.stroke();
+}
+
+function shave(g, r) {
+  // a rock, and a boat's line curving past it close enough to touch
+  g.strokeStyle = INK;
+  g.lineWidth = r * 0.06;
+  g.fillStyle = '#8a8fb0';
+  g.beginPath();
+  g.moveTo(-r * 0.62, r * 0.42);
+  g.bezierCurveTo(-r * 0.7, -r * 0.05, -r * 0.4, -r * 0.42, -r * 0.08, -r * 0.3);
+  g.bezierCurveTo(r * 0.12, -r * 0.22, r * 0.14, r * 0.15, r * 0.02, r * 0.42);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  g.strokeStyle = CREAM;
+  g.lineWidth = r * 0.13;
+  g.beginPath();
+  g.moveTo(r * 0.55, r * 0.78);
+  g.bezierCurveTo(r * 0.15, r * 0.3, r * 0.15, -r * 0.4, r * 0.62, -r * 0.72);
+  g.stroke();
+  g.fillStyle = AMBER;
+  g.strokeStyle = INK;
+  g.lineWidth = r * 0.035;
+  star(g, r * 0.22, -r * 0.02, r * 0.13);
   g.fill();
   g.stroke();
 }

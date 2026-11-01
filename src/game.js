@@ -8,6 +8,7 @@ import { STREAMS, ROWER_NAMES, streamByN, cap } from './sim/streams.js';
 import { startSlot, clock as fmt, stars as starsOf, FINISH_WINDOW } from './sim/race.js';
 import { beatPos } from './sim/racer.js';
 import { makeSong } from './sim/song.js';
+import { createScore } from './sim/score.js';
 import { wrap } from './sim/course.js';
 import { INTRO, JOIN, createNet, cleanBoat, cleanExtras, streamForRound } from './net.js';
 import { rowerLook, playerLook, assignPaints, createAvatars } from './looks.js';
@@ -29,7 +30,10 @@ const LAGS = [
   { lag: 0, oct: -1 },
   { lag: 4, oct: -1 },
 ];
-const KIND_RIPPLE = { perfect: 1, good: 2, splash: 3 };
+const KIND_RIPPLE = { perfect: 1, good: 2, splash: 3, pull: 1 };
+/** Swell types on the water (water.js SWELL). */
+const SWELL_GOLD = 1;
+const SWELL_DROP = 2;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
@@ -278,12 +282,17 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       phaseShown: '',
       calm: 0,
       deltas: [],
+      score: createScore(),
+      dropMarks: new Map(),
+      bloomLine: -1,
+      bloomRun: 0,
       wasPad: false,
       rivalFin: new Map(),
       done: false,
     };
     refreshLooks(r, true);
     scene.load(stream, sim.course);
+    scene.resetBlooms();
     scene.setBoats(o.seats.map((s) => ({ id: s.id, look: r.looks.get(s.id) })));
     scene.hidePodium();
     scene.setGhost(false);
@@ -536,6 +545,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       oar: rip ? rip.oar : null,
       ghost,
       calm: r.calm,
+      got: meB ? meB.got : null,
       beam: true,
       camera: cam,
       arch: { count: countLit, finishLit, sign },
@@ -651,7 +661,33 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const mine = id === r.meId && r.kind !== 'attract';
     switch (ev.type) {
       case 'stroke':
-        if (mine && r.pilot != null) feedback(r, ev.res, ev.t);
+        if (mine) {
+          r.score.events([ev]);
+          if (r.pilot != null) feedback(r, ev.res, ev.t);
+        }
+        break;
+      case 'bloom':
+        if (mine) {
+          r.score.add('bloom');
+          const m = r.course.blooms[ev.i];
+          r.bloomRun = m && m.line === r.bloomLine ? r.bloomRun + 1 : 0;
+          r.bloomLine = m?.line ?? -1;
+          const b = r.sim.me.boat;
+          const pan = clamp((m ? m.d - b.d : 0) * 0.2, -0.6, 0.6);
+          audio.fx.bloom(r.bloomRun, r.stream.tonic, pan);
+          if (r.bloomRun >= 4) award('bouquet');
+          scene.bloom(ev.i, r.bloomRun);
+          ui.blooms(b.blooms);
+        }
+        break;
+      case 'shave':
+        if (mine) {
+          r.score.add('shave');
+          audio.fx.shave(0);
+          award('close-shave');
+          judgeWord(r, 'shave', 0);
+          scene.punch(0.35);
+        }
         break;
       case 'miss':
         if (mine && ev.res?.beat) {
@@ -662,6 +698,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
         break;
       case 'bump':
         if (mine) {
+          r.score.add('bump');
           r.bumps++;
           audio.fx.bump(ev.kind, 1);
           scene.shake(0.45);
@@ -690,9 +727,23 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     if (res.beat && KIND_RIPPLE[kind]) {
       if (kind !== 'splash' || !r.marks.has(res.beat.i)) r.marks.set(res.beat.i, KIND_RIPPLE[kind]);
     }
+    if (kind === 'drop' && res.drop) r.dropMarks.set(res.drop.n, 1);
     const beatCtx = res.beat ? r.clock.ctxOf(res.beat.t) : null;
     audio.stroke(res, { beatCtx: beatCtx ?? audio.now, strokeCtx: audio.now, tonic: r.stream.tonic, side });
     if (kind === 'perfect' || kind === 'good' || kind === 'splash') judgeWord(r, kind, side);
+    if (kind === 'pull') {
+      judgeWord(r, 'pull', 0);
+      scene.punch(0.55);
+      scene.flash('#FFC94D', 0.1);
+      scene.pull();
+    }
+    if (res.rush) {
+      ui.rush();
+      scene.flash('#FFE7A8', 0.16);
+      scene.punch(0.8);
+      scene.rush();
+      award('merrily-rush');
+    }
     if (kind === 'splash') r.splashRun++;
     if (kind === 'perfect' || kind === 'good') {
       r.splashRun = 0;
@@ -737,7 +788,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const lvl = js.level;
     if (lvl > r.lastLevel) {
       audio.fx.lanternUp(lvl, r.stream.tonic);
-      if (lvl >= 2) ui.merrily(lvl);
       if (lvl >= 4) award('merrily-x4');
     } else if (lvl < r.lastLevel) audio.fx.lanternOut();
     r.lastLevel = lvl;
@@ -757,22 +807,39 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const list = [];
     let glow = 0;
     const i0 = Math.max(0, song.indexAt(tv) - 1);
-    for (let i = i0; i < song.beats.length && list.length < 8; i++) {
+    for (let i = i0; i < song.beats.length && list.length < 9; i++) {
       const beat = song.beats[i];
       const dtb = beat.t - tv;
       if (dtb > beat.dur * AHEAD) break;
       if (beat.rest || dtb < -LINGER) continue;
       const speed = SPACING / beat.dur;
       const mark = r.marks.get(beat.i) ?? 0;
+      const type = beat.gold ? SWELL_GOLD : 0;
       if (dtb >= 0) {
         const k = dtb / (beat.dur * AHEAD);
-        list.push({ s: b.s + dtb * speed, strength: Math.pow(1 - k, 0.7) * (mark ? 1.2 : 1), kind: mark, grow: 0 });
+        list.push({ s: b.s + dtb * speed, strength: Math.pow(1 - k, 0.7) * (mark ? 1.2 : 1) * (beat.gold ? 1.15 : 1), kind: mark, type, grow: 0 });
         glow = Math.max(glow, Math.exp(-((dtb / 0.09) ** 2)));
       } else {
         const k = -dtb / LINGER;
-        list.push({ s: b.s + dtb * speed * 0.35, strength: (1 - k) * (mark ? 1.25 : 0.6), kind: mark, grow: k });
+        list.push({ s: b.s + dtb * speed * 0.35, strength: (1 - k) * (mark ? 1.25 : 0.6), kind: mark, type, grow: k });
         if (!mark) glow = Math.max(glow, Math.exp(-((dtb / 0.09) ** 2)));
       }
+    }
+    // the merrily bar's droplets: small dotted ripples between the beats
+    const drops = song.drops;
+    for (let i = r.dropAt ?? 0; i < drops.length && list.length < 15; i++) {
+      const dp = drops[i];
+      const dtb = dp.t - tv;
+      const dur = song.beats[dp.beat].dur;
+      if (dtb < -LINGER) {
+        r.dropAt = i + 1;
+        continue;
+      }
+      if (dtb > dur * AHEAD) break;
+      const speed = SPACING / dur;
+      const mark = r.dropMarks.get(dp.n) ? 1 : 0;
+      if (dtb >= 0) list.push({ s: b.s + dtb * speed, strength: 0.75 * Math.pow(1 - dtb / (dur * AHEAD), 0.7), kind: mark, type: SWELL_DROP, grow: 0 });
+      else list.push({ s: b.s + dtb * speed * 0.35, strength: (1 + dtb / LINGER) * (mark ? 0.9 : 0.4), kind: mark, type: SWELL_DROP, grow: -dtb / LINGER });
     }
     return { list, oar: { s: b.s, d: b.d, glow } };
   }
@@ -864,6 +931,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
         time: t >= 0 ? fmt(r.myFin ?? t) : '',
         gap,
         gapAhead,
+        tally: { score: r.score.state.total, level: me.judge.state.level, blooms: me.boat.blooms },
         progress: boats
           .filter((b) => !b.hidden)
           .map((b) => {
@@ -1451,6 +1519,14 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const perf = stampOf(e);
     const left = k === 'a' || k === 'A' || k === 'ArrowLeft' || k === 'j' || k === 'J';
     const right = k === 'd' || k === 'D' || k === 'ArrowRight' || k === 'k' || k === 'K';
+    // both oars at once (a pull on a gold beat): Space, W / S, the up and down arrows
+    const both = k === 'w' || k === 'W' || k === 's' || k === 'S' || k === 'ArrowUp' || k === 'ArrowDown' || (k === ' ' && racingNow());
+    if (both && screen !== 'timing' && racingNow()) {
+      stroke(-1, perf);
+      stroke(1, perf + 1);
+      e.preventDefault();
+      return;
+    }
     if (left || right) {
       if (screen === 'timing') timingTap(perf);
       else stroke(left ? -1 : 1, perf);
@@ -1475,6 +1551,13 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       return;
     }
     if ((k === 'r' || k === 'R') && run?.kind === 'dream') startDream(run.n);
+  }
+
+  /** Is the player rowing a race right now (so Space rows instead of pressing a button)? */
+  function racingNow() {
+    const r = run;
+    if (!r || r.kind === 'attract' || r.paused || !r.sim?.me || r.myFin !== null || r.pilot != null) return false;
+    return r.kind !== 'room' || net.match.phase === 'round';
   }
 
   function onPointer(e) {

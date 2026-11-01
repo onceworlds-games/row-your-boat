@@ -16,7 +16,10 @@
     { "id": "photo-finish", "name": "Photo Finish", "description": "Win a race by under a tenth of a second.", "icon": "store/badge-photo-finish.png" },
     { "id": "choir", "name": "Choir", "description": "Finish a race with three or more other people.", "icon": "store/badge-choir.png" },
     { "id": "dreamer", "name": "Dreamer", "description": "Finish all eight streams of The Dream.", "icon": "store/badge-dreamer.png" },
-    { "id": "life-is-but-a-dream", "name": "Life Is But a Dream", "description": "Earn all 24 stars of The Dream.", "icon": "store/badge-life-is-but-a-dream.png" }
+    { "id": "life-is-but-a-dream", "name": "Life Is But a Dream", "description": "Earn all 24 stars of The Dream.", "icon": "store/badge-life-is-but-a-dream.png" },
+    { "id": "merrily-rush", "name": "Merrily!", "description": "Row all twelve notes of a merrily bar.", "icon": "store/badge-merrily-rush.png" },
+    { "id": "bouquet", "name": "Bouquet", "description": "Take all five moonblooms of a line.", "icon": "store/badge-bouquet.png" },
+    { "id": "close-shave", "name": "Close Shave", "description": "Slip past a rock with a hand's width to spare.", "icon": "store/badge-close-shave.png" }
   ],
   "controls": [
     { "keys": ["A", "←", "J"], "action": "Left oar: on the beat" },

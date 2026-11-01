@@ -71,7 +71,7 @@ export function makeSong(bpm, { seconds = 600 } = {}) {
   const drops = [];
   for (const b of beats) {
     if (!b.rush) continue;
-    for (const k of [1, 2]) drops.push({ n: drops.length, t: b.t + (b.dur * k) / 3, beat: b.i, k, verse: Math.floor(b.row / VERSE) });
+    for (const k of [1, 2]) drops.push({ n: drops.length, t: b.t + (b.dur * k) / 3, beat: b.i, vb: b.vb, k, verse: Math.floor(b.row / VERSE) });
   }
 
   /** The droplet nearest `time`, or null. */

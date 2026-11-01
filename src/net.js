@@ -51,7 +51,7 @@ export function cleanBoat(raw, prev = null, total = 2000) {
   if (Number.isInteger(raw.c) && raw.c >= 0 && raw.c <= 3) out.c = raw.c;
   if (Number.isInteger(raw.k) && raw.k >= 0 && raw.k < 1e6) out.k = raw.k;
   if (raw.ls === -1 || raw.ls === 0 || raw.ls === 1) out.ls = raw.ls;
-  if (Number.isInteger(raw.lq) && raw.lq >= 0 && raw.lq <= 5) out.lq = raw.lq;
+  if (Number.isInteger(raw.lq) && raw.lq >= 0 && raw.lq <= 7) out.lq = raw.lq;
   if (raw.f === 0 || raw.f === 1) out.f = raw.f;
   if (inRange(raw.ft, 0, 100000)) out.ft = raw.ft;
   return out;

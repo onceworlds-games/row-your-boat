@@ -296,8 +296,12 @@ function playBeat(o, i, beat, t) {
   const chord = chordOf(vb);
   const level = o.menu ? 1 : clamp(o.level ?? 1, 1, 4);
   const down = vb % 2 === 0;
-  // The oarlock's tock on every beat: the metronome.
+  // The oarlock's tock on every beat: the metronome; a gold beat rings a warm bell under it (both oars there).
   if (!o.menu) tock(t, down ? 0.16 : 0.11, down);
+  if (!o.menu && beat.gold) {
+    bell(tonic + chord[0], t, 0.09, 0, musicBus);
+    tone('sine', freq(tonic - 12 + chord[0]), t, { vol: 0.12, decay: 0.6, bus: musicBus });
+  }
   // Bass on the downbeat.
   if (down) TIMBRES.harp(tonic - 24 + chord[0], t, o.menu ? 0.35 : 0.5, 0, 3, musicBus);
   if (o.menu) {
@@ -343,6 +347,26 @@ function stroke(res, { beatCtx, strokeCtx, tonic, side = 0 } = {}) {
     return;
   }
   if (kind === 'early') return;
+  if (kind === 'pull') {
+    // both oars dig in on a gold beat: a deep whoomp, the water rushing, a gold chord over the tune
+    tone('sine', 110, now, { vol: 0.34, decay: 0.32, to: 55, pan: 0 });
+    hiss(now, { vol: 0.2, decay: 0.5, type: 'lowpass', f: 500, to: 2600, q: 0.7 });
+    for (const [k, semi] of [0, 7, 12, 16].entries()) bell(tonic + 12 + semi, now + 0.03 + k * 0.025, 0.07, (k - 1.5) * 0.3, sfxBus);
+    if (res.rush) fx.rush(tonic);
+    return;
+  }
+  if (kind === 'drop') {
+    // a droplet plays its own note of the merrily bar
+    const dp = res.drop;
+    const b = dp ? BEAT_NOTES[dp.vb] : null;
+    const note = b?.find(([e]) => e === dp.k);
+    const semi = note ? note[2] : 12;
+    tone('sine', 1700 + dp?.k * 300, now, { vol: 0.05, decay: 0.05, to: 900, pan });
+    TIMBRES.box(tonic + 12 + semi, now, 0.8, pan, 1, musicBus);
+    TIMBRES.glock(tonic + semi, now, 0.22, pan, 1, sfxBus);
+    if (res.rush) fx.rush(tonic);
+    return;
+  }
   // water: a clean plip, a fuller splash for both oars
   const full = kind === 'both';
   tone('sine', 1300, now, { vol: kind === 'perfect' ? 0.12 : 0.08, decay: 0.07, to: 520, pan });
@@ -353,7 +377,9 @@ function stroke(res, { beatCtx, strokeCtx, tonic, side = 0 } = {}) {
   if (!beat || beat.vb < 0) return;
   const vel = kind === 'perfect' ? 0.95 : 0.6;
   const eighth = beat.dur / 3;
-  const notes = BEAT_NOTES[beat.vb];
+  // in the merrily bar the droplets play the notes between the beats themselves
+  const notes = beat.rush ? BEAT_NOTES[beat.vb].filter(([e]) => e === 0) : BEAT_NOTES[beat.vb];
+  if (res.rush) fx.rush(tonic);
   if (notes.length === 0) {
     // a held note: a soft chord tone
     TIMBRES.box(tonic + 12 + chordOf(beat.vb)[2], now, vel * 0.4, pan, 2, musicBus);
@@ -368,6 +394,30 @@ function stroke(res, { beatCtx, strokeCtx, tonic, side = 0 } = {}) {
 // ---------------------------------------------------------------- effects
 
 const fx = {
+  /** A whole merrily rush: the glockenspiel runs up, the choir answers. */
+  rush(tonic = 65) {
+    if (!running()) return;
+    const t = at() + 0.05;
+    [0, 2, 4, 7, 9, 12, 14, 16, 19, 24].forEach((semi, k) => TIMBRES.glock(tonic + semi, t + k * 0.045, 0.3, (k / 9 - 0.5) * 0.8, 1, sfxBus));
+    for (const semi of [0, 4, 7]) TIMBRES.hum(tonic + semi, t + 0.3, 0.45, (semi - 3.5) * 0.08, 6, sfxBus);
+    hiss(t, { vol: 0.12, decay: 0.7, type: 'lowpass', f: 400, to: 5000, q: 0.6 });
+  },
+  /** A moonbloom: a crystal chime, higher through a line. */
+  bloom(k = 0, tonic = 65, pan = 0) {
+    if (!running()) return;
+    const t = at();
+    const semi = [0, 2, 4, 7, 9, 12, 14][Math.max(0, Math.min(6, k))];
+    tone('sine', freq(tonic + 24 + semi), t, { vol: 0.09, decay: 0.9, pan, bus: sfxBus });
+    tone('sine', freq(tonic + 24 + semi) * 2.01, t, { vol: 0.03, decay: 0.4, pan, bus: sfxBus });
+    tone('sine', freq(tonic + 31 + semi), t + 0.06, { vol: 0.04, decay: 0.6, pan, bus: sfxBus });
+  },
+  /** A close shave: air past the hull and a little pluck. */
+  shave(pan = 0) {
+    if (!running()) return;
+    const t = at();
+    hiss(t, { vol: 0.16, decay: 0.28, f: 4200, to: 900, q: 1.2, pan });
+    tone('triangle', 880, t + 0.05, { vol: 0.07, decay: 0.12, to: 1320, pan, bus: sfxBus });
+  },
   miss(side = 0) {
     if (!running()) return;
     const t = at();

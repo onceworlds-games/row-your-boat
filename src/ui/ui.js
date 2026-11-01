@@ -200,7 +200,18 @@ export function createUI(root, tagRoot) {
         place.append(n, t, gap);
         const prog = h('div', 'progress');
         prog.append(h('div', 'line'), h('div', 'arch'));
-        box.append(place, prog);
+        // the score, the bow lanterns lit and the moonblooms taken
+        const tally = h('div', 'tally');
+        const pts = h('div', 'pts display outlined', '0');
+        const row2 = h('div', 'row2');
+        const lans = h('span', 'lans');
+        for (let i = 0; i < 4; i++) lans.append(svgEl(ICON.lantern, 'l'));
+        const blm = h('span', 'blms outlined');
+        const blmN = h('span', 'n', '0');
+        blm.append(svgEl(ICON.bloom, 'ic'), blmN);
+        row2.append(lans, blm);
+        tally.append(pts, row2);
+        box.append(place, prog, tally);
         let pause = null;
         if (d.onPause) {
           pause = button('disc pausebtn', svgEl(ICON.pause), d.onPause);
@@ -208,7 +219,38 @@ export function createUI(root, tagRoot) {
           box.append(pause);
         }
         L.append(box);
-        H = ui._hud = { box, place, n, t, gap, prog, pause, marks: new Map(), shown: { place: 0, time: '', gap: '' } };
+        H = ui._hud = { box, place, n, t, gap, prog, pause, tally, pts, lans, blm, blmN, marks: new Map(), shown: { place: 0, time: '', gap: '', pts: 0, lvl: 0, blm: 0 } };
+      }
+      H.tally.style.left = `${16 + (insets.left || 0)}px`;
+      H.tally.hidden = !d.tally;
+      if (d.tally) {
+        const sc = Math.round(d.tally.score ?? 0);
+        if (sc !== H.shown.pts) {
+          // count up towards the score rather than jumping
+          const step = Math.max(1, Math.ceil(Math.abs(sc - H.shown.pts) * 0.18));
+          H.shown.pts += Math.sign(sc - H.shown.pts) * Math.min(step, Math.abs(sc - H.shown.pts));
+          H.pts.textContent = H.shown.pts.toLocaleString('en-US');
+        }
+        const lvl = d.tally.level ?? 1;
+        if (lvl !== H.shown.lvl) {
+          [...H.lans.children].forEach((e, i) => {
+            const on = i < lvl;
+            const was = e.classList.contains('on');
+            e.classList.toggle('on', on);
+            if (on && !was && H.shown.lvl) {
+              e.classList.remove('pop');
+              void e.offsetWidth;
+              e.classList.add('pop');
+            }
+          });
+          H.lans.classList.toggle('full', lvl >= 4);
+          H.shown.lvl = lvl;
+        }
+        const bn = d.tally.blooms ?? 0;
+        if (bn !== H.shown.blm) {
+          H.shown.blm = bn;
+          H.blmN.textContent = String(bn);
+        }
       }
       const right = 18 + (insets.right || 0);
       if (H.pause) {
@@ -275,7 +317,7 @@ export function createUI(root, tagRoot) {
 
     judge(kind, x, y) {
       const L = layer('judge');
-      const words = { perfect: 'perfect', good: 'good', splash: 'splash', miss: 'miss', both: 'both oars' };
+      const words = { perfect: 'perfect', good: 'good', splash: 'splash', miss: 'miss', both: 'both oars', pull: 'pull!', shave: 'close shave' };
       const e = h('div', `judge outlined ${kind}`, words[kind] ?? kind);
       e.style.left = `${x}px`;
       e.style.top = `${y}px`;
@@ -284,12 +326,24 @@ export function createUI(root, tagRoot) {
       while (L.children.length > 6) L.firstChild.remove();
     },
 
-    merrily(level) {
+    /** The merrily bar rowed clean: twelve notes. */
+    rush() {
       const L = layer('merrily');
       L.textContent = '';
-      const e = h('div', 'merrily display outlined', level >= 4 ? 'Merrily!' : `Merrily ×${level}`);
+      const e = h('div', 'merrily display outlined', 'Merrily!');
       L.append(e);
       setTimeout(() => e.remove(), 1300);
+    },
+
+    /** A moonbloom taken: the count in the tally bobs. */
+    blooms(n) {
+      const H = ui._hud;
+      if (!H) return;
+      H.shown.blm = n;
+      H.blmN.textContent = String(n);
+      H.blm.classList.remove('pop');
+      void H.blm.offsetWidth;
+      H.blm.classList.add('pop');
     },
 
     streamName(name, sub) {

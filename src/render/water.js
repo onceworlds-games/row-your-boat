@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { NO_MIRROR } from './world.js';
 
-export const RIPPLES = 10;
+export const RIPPLES = 16;
 export const RINGS = 16;
 /** Swell types (packed with the judgement into one number: kind + 4 * type). */
 export const SWELL = { plain: 0, gold: 1, drop: 2 };

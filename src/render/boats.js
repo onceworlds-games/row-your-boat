@@ -496,7 +496,7 @@ export function createBoatMesh(look, { ghost = false } = {}) {
   };
   api.setLevel(1, true);
 
-  /** A stroke on side (-1, 1; 0 both). kind: perfect, good, splash, free, both. */
+  /** A stroke on side (-1, 1; 0 both). kind: perfect, good, splash, free, both, pull, drop. */
   api.stroke = (side, kind) => {
     for (const o of oars) {
       if (side !== 0 && o.side !== side) continue;
@@ -505,11 +505,11 @@ export function createBoatMesh(look, { ghost = false } = {}) {
       o.dripped = false;
     }
     lastSide = side;
-    const power = kind === 'splash' ? 0.35 : side === 0 ? 1.4 : 1;
+    const power = kind === 'splash' ? 0.35 : kind === 'drop' ? 0.55 : kind === 'pull' ? 2 : side === 0 ? 1.4 : 1;
     surge = Math.max(surge, power);
     pitchV += 0.9 * power;
     rollV += side * (kind === 'splash' ? 0.9 : 0.35);
-    if (kind === 'perfect' || side === 0) rower.face('happy', 0.5);
+    if (kind === 'perfect' || kind === 'drop' || side === 0) rower.face('happy', 0.5);
     if (kind === 'splash') rower.face('oops', 0.7);
   };
   api.bump = (side = 0, power = 1) => {
