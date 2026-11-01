@@ -573,6 +573,11 @@ export function createUI(root, tagRoot) {
       setTimeout(() => e.remove(), 3900);
     },
 
+    /** Shrink the place stamp to the top while watching the others finish. */
+    stampSmall(small) {
+      layer('stamp').firstChild?.classList.toggle('small', !!small);
+    },
+
     stamp(place) {
       const L = layer('stamp');
       L.textContent = '';

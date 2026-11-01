@@ -36,6 +36,8 @@ const KIND_RIPPLE = { perfect: 1, good: 2, splash: 3, pull: 1 };
 /** Swell types on the water (water.js SWELL). */
 const SWELL_GOLD = 1;
 const SWELL_DROP = 2;
+/** Seconds after crossing the line before the camera goes to watch the boats still rowing. */
+const WATCH_AFTER = 5;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
@@ -532,13 +534,23 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const countLit = t < 0 ? r.song.count.filter((c, i) => i > 0 && c <= tv).length : 3;
     // HUD, tags
     if (r.kind !== 'attract') hudStep(r, t, phase, boats, order, focus, perf);
+    if (me && r.myFin !== null) {
+      const small = t > r.myFin + WATCH_AFTER;
+      if (r.stampSmall !== small) {
+        r.stampSmall = small;
+        ui.stampSmall(small);
+      }
+    }
     // the camera
     const portrait = H > W;
     let cam;
     if (r.kind === 'attract') cam = { mode: 'title', portrait, boat: focus };
     else if (phase === 'results') cam = { mode: 'results', portrait };
     else if (t < 0) cam = { mode: 'intro', k: (t + INTRO) / INTRO, portrait, boat: focus };
-    else if ((me && r.myFin !== null && t > r.myFin + 0.8) || phase === 'roundEnd') cam = { mode: 'finish', portrait, boat: focus };
+    else if (me && r.myFin !== null && t > r.myFin + WATCH_AFTER && phase !== 'roundEnd' && chaser(boats, left)) {
+      // over the line: after a moment, watch whoever is nearest the line still rowing
+      cam = { mode: 'spectate', portrait, boat: chaser(boats, left) };
+    } else if ((me && r.myFin !== null && t > r.myFin + 0.8) || phase === 'roundEnd') cam = { mode: 'finish', portrait, boat: focus };
     else if (!me) cam = { mode: 'spectate', portrait, boat: focus };
     else cam = { mode: 'race', portrait, boat: focus, push: me.judge.state.level >= 4 ? 1 : 0, beat: r.song.phase(Math.max(0, tv)).f };
     const ph = r.song.phase(tv);
@@ -721,7 +733,11 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
           r.score.add('bump');
           r.bumps++;
           audio.fx.bump(ev.kind, 1);
-          scene.shake(0.45);
+          // the camera is knocked the way the boat was
+          const bb = r.sim.me?.boat;
+          const sd = ev.side || 0;
+          scene.shake(0.45, bb && sd ? Math.cos(bb.h) * sd : 0, bb && sd ? Math.sin(bb.h) * sd : 0);
+          scene.hitstop(0.05);
         }
         break;
       case 'touch':
@@ -997,6 +1013,16 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
 
   // ---------------------------------------------------------------- finishing, the round's end, results
 
+  /** The boat nearest the finish that is still rowing (not over the line, not gone), or null. */
+  function chaser(boats, left) {
+    let best = null;
+    for (const b of boats) {
+      if (b.f || b.hidden || left.has(b.id)) continue;
+      if (!best || b.s > best.s) best = b;
+    }
+    return best;
+  }
+
   function myFinish(r, ft, perf) {
     if (r.myFin !== null) return;
     r.myFin = ft;
@@ -1007,6 +1033,9 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     audio.fx.finish(r.stream.tonic, r.myPlace === 1);
     const a = r.course.point(r.course.finish, 0);
     scene.fx.finish(a.x, 3.5, a.z);
+    scene.slowmo(r.myPlace === 1 ? 1.4 : 0.7);
+    scene.flash(r.myPlace === 1 ? '#FFE7A8' : '#FFFFFF', r.myPlace === 1 ? 0.28 : 0.12);
+    scene.punch(r.myPlace === 1 ? 1 : 0.5);
     if (r.kind === 'room') {
       net.finish(ft);
       r.sentFin = perf;

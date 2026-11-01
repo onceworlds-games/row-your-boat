@@ -106,7 +106,7 @@ function bumpHit(b, spin, events, kind) {
     b.spin += spin * SPIN_DECAY;
     b.grace = GRACE;
     b.bumps++;
-    events.push({ type: 'bump', kind });
+    events.push({ type: 'bump', kind, side: Math.sign(spin) });
   }
 }
 

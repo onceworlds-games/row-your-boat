@@ -238,7 +238,7 @@ function lanternSpots(course) {
 }
 
 /** A paper lantern on its string: ribbed paper (bright), dark caps; one geometry with vertex colour. */
-function paperLantern() {
+export function paperLantern() {
   const pts = [];
   const N = 14;
   for (let i = 0; i <= N; i++) {

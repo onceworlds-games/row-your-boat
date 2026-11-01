@@ -4,13 +4,14 @@
 import * as THREE from 'three';
 import { createWorld } from './world.js';
 import { createWater, RING } from './water.js';
-import { createRiver } from './river.js';
+import { createRiver, paperLantern } from './river.js';
 import { createDream } from './dreams.js';
 import { createBoatMesh } from './boats.js';
 import { createFx } from './fx.js';
 import { createBlooms } from './blooms.js';
 import { themeOf } from './themes.js';
-import { G } from './kit.js';
+import { G, createKit, glowTexture } from './kit.js';
+import { NO_MIRROR } from './world.js';
 
 const v3 = new THREE.Vector3();
 const v4 = new THREE.Vector3();
@@ -27,6 +28,8 @@ export function createScene(canvas, { poster = false } = {}) {
   let podium = null;
   let reduced = false;
   let hitstop = 0;
+  let slow = 0; // a moment in slow motion (the finish): sparks and spray hang, the camera drifts
+  let slowFor = 1;
   let lastNow = 0;
   let lastFocus = null;
 
@@ -97,6 +100,32 @@ export function createScene(canvas, { poster = false } = {}) {
 
   // ---------------------------------------------------------------- the podium of pillows
 
+  /** A gold numeral on a little ribbon for the front of a stack. */
+  function numeral(n) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = n === 1 ? '#c9a24e' : n === 2 ? '#b9bccb' : '#b0784a';
+    g.beginPath();
+    g.arc(64, 64, 58, 0, Math.PI * 2);
+    g.fill();
+    g.lineWidth = 6;
+    g.strokeStyle = 'rgba(40, 24, 16, 0.55)';
+    g.stroke();
+    g.font = '900 86px "Fraunces Variable", Georgia, serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillStyle = '#2a1a12';
+    g.fillText(String(n), 64, 70);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return new THREE.Mesh(new THREE.CircleGeometry(0.62, 32), new THREE.MeshStandardMaterial({ map: t, roughness: 0.4, metalness: 0.5 }));
+  }
+
+  /**
+   * The winners' stage past the finish: a round raft with a velvet top, stacks of pillows (three, two, one) with the
+   * top three rowers standing on them, a half-ring of lit paper lanterns behind, and pools of light from above.
+   */
   function showPodium(top, looks) {
     hidePodium();
     if (!cur) return;
@@ -106,32 +135,91 @@ export function createScene(canvas, { poster = false } = {}) {
     podium = new THREE.Group();
     podium.position.set(a.x, 0, a.z);
     podium.rotation.y = -a.h + Math.PI;
-    const cols = ['#F2A7B6', '#f4ebd0', '#B7A5E8', '#9CC5A1', '#FFB547'];
-    const heights = [3, 2, 1];
-    const xs = [0, -4.2, 4.2];
     podium.userData.figs = [];
-    top.forEach((id, i) => {
-      if (i > 2) return;
-      for (let k = 0; k < heights[i]; k++) {
-        const m = new THREE.Mesh(G.rbox(3.4, 1.15, 2.6, 0.5), new THREE.MeshStandardMaterial({ color: cols[(i * 2 + k) % cols.length], roughness: 0.9 }));
-        m.position.set(xs[i], 0.6 + k * 1.1, 0);
-        m.rotation.y = (k % 2 ? 0.12 : -0.08) * (i + 1);
-        m.castShadow = true;
-        m.receiveShadow = true;
-        podium.add(m);
+    podium.userData.lights = [];
+    const kit = createKit();
+    // the raft: a wooden ring round a velvet top
+    kit.add(G.cyl(7.4, 7.6, 0.9, 48), '#4a3226', { y: 0.15 }, { mat: 'wood' });
+    kit.add(G.cyl(7.0, 7.0, 0.2, 48), '#4a56a0', { y: 0.65 }, { mat: 'fabric' });
+    for (let k = 0; k < 24; k++) {
+      const an = (k / 24) * Math.PI * 2;
+      kit.add(G.sphere(0.16, 8, 6), '#c9a24e', { x: Math.sin(an) * 7.45, y: 0.62, z: Math.cos(an) * 7.45 }, { mat: 'metal' });
+    }
+    // stacks of pillows, each with a tuft button and a piped edge
+    const stacks = [
+      { x: 0, n: 3, cols: ['#f4ebd0', '#F2A7B6', '#f4ebd0'] },
+      { x: 4.3, n: 2, cols: ['#B7A5E8', '#f4ebd0'] },
+      { x: -4.3, n: 1, cols: ['#9CC5A1'] },
+    ];
+    const PH = 1.05;
+    stacks.forEach((st, i) => {
+      for (let k = 0; k < st.n; k++) {
+        const y = 0.75 + PH / 2 + k * PH;
+        const rot = (k % 2 ? 0.1 : -0.07) * (i + 1);
+        const place = { x: st.x, y, ry: rot };
+        kit.add(G.rbox(3.5, PH, 2.9, 0.48, 3), st.cols[k], place, { mat: 'fabric' });
+        const m = new THREE.Matrix4().makeRotationY(rot).setPosition(st.x, y, 0);
+        kit.add(G.sphere(0.13, 10, 8), '#c9a24e', { y: PH / 2 - 0.02, sy: 0.5 }, { parent: m, mat: 'metal' });
+        // piping round the middle seam
+        kit.add(G.box(3.36, 0.07, 0.07), '#c9a24e', { z: -1.43 }, { parent: m, mat: 'fabric' });
+        kit.add(G.box(3.36, 0.07, 0.07), '#c9a24e', { z: 1.43 }, { parent: m, mat: 'fabric' });
       }
-      const lk = looks.get(id);
-      if (lk) {
-        const fig = createBoatMesh(lk);
-        fig.showBoat(false);
-        fig.group.position.set(xs[i], heights[i] * 1.1 + 0.1 - 0.32, 0);
-        fig.group.rotation.y = Math.PI;
-        fig.pose(i === 0 ? 'cheer' : 'wave');
-        podium.add(fig.group);
-        podium.userData.figs.push(fig);
+      const nm = numeral(i + 1);
+      nm.position.set(st.x, 0.75 + st.n * PH - PH / 2, -1.5);
+      nm.rotation.y = Math.PI;
+      podium.add(nm);
+    });
+    // a half-ring of lantern posts behind
+    const lanternGeo = paperLantern();
+    const warm = new THREE.Color(cur.theme?.lantern ?? '#FFB547').lerp(new THREE.Color('#fff2d8'), 0.35);
+    const lanternMat = new THREE.MeshBasicMaterial({ vertexColors: true, color: warm.clone().multiplyScalar(2) });
+    const glowPos = [];
+    for (let k = 0; k < 7; k++) {
+      const an = -1.35 + (k / 6) * 2.7;
+      const x = Math.sin(an) * 6.7;
+      const z = Math.cos(an) * 6.7;
+      const h = 4.6 + (k % 2) * 0.6;
+      kit.add(G.cyl(0.07, 0.1, h, 6), '#4a3226', { x, y: 0.7 + h / 2, z }, { mat: 'wood' });
+      kit.add(G.box(0.9, 0.08, 0.08), '#4a3226', { x: x - Math.cos(an) * 0.35, y: 0.7 + h, z: z + Math.sin(an) * 0.35, ry: an + Math.PI / 2 }, { mat: 'wood' });
+      const lm = new THREE.Mesh(lanternGeo, lanternMat);
+      lm.scale.setScalar(1.4);
+      lm.position.set(x - Math.cos(an) * 0.7, 0.7 + h, z + Math.sin(an) * 0.7);
+      podium.add(lm);
+      glowPos.push(lm.position.x, lm.position.y - 0.75, lm.position.z);
+    }
+    const built = kit.build('podium');
+    built.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
       }
     });
+    podium.add(built);
+    const gg = new THREE.BufferGeometry();
+    gg.setAttribute('position', new THREE.Float32BufferAttribute(glowPos, 3));
+    const halos = new THREE.Points(gg, new THREE.PointsMaterial({ map: glowTexture(), color: warm, size: 3.6, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+    halos.layers.set(NO_MIRROR);
+    halos.frustumCulled = false;
+    podium.add(halos);
+    // the rowers, standing tall on their stacks
+    top.forEach((id, i) => {
+      if (i > 2) return;
+      const lk = looks.get(id);
+      if (!lk) return;
+      const st = stacks[i];
+      const fig = createBoatMesh(lk);
+      fig.showBoat(false);
+      fig.group.scale.setScalar(1.6);
+      fig.group.position.set(st.x, 0.75 + st.n * PH - 0.5, 0);
+      fig.group.rotation.y = Math.PI;
+      fig.pose(i === 0 ? 'cheer' : 'wave');
+      podium.add(fig.group);
+      podium.userData.figs.push(fig);
+    });
     scene.add(podium);
+    podium.updateMatrixWorld(true);
+    // where the light pool hangs while the stage is shown: over each stack
+    for (const st of stacks) podium.userData.lights.push(new THREE.Vector3(st.x * 1.2, 5.2 + st.n * 0.6, -4.5).applyMatrix4(podium.matrixWorld));
   }
   function hidePodium() {
     if (!podium) return;
@@ -294,18 +382,24 @@ export function createScene(canvas, { poster = false } = {}) {
       [lx, ly, lz] = c.look;
       follow = 1;
     } else if (c.mode === 'results') {
+      // the stage, framed in the top of the screen (the results sit over the bottom), drifting a little
+      const t = c.now ?? 0;
       const s = Math.min(course.total - 10, course.finish + 22);
       const a = course.at(s);
-      const p = course.point(s - 13, 0);
+      const p = course.point(s - (c.portrait ? 17 : 12.5), Math.sin(t * 0.12) * 2.2);
       px = p.x;
       pz = p.z;
-      py = 5.2;
+      py = c.portrait ? 5.2 : 3.4;
       lx = a.x;
       lz = a.z;
-      ly = 2.6;
+      ly = c.portrait ? -0.6 : 1.1;
       follow = 1 - Math.exp(-dt * 2);
     } else return;
     if (hitstop > 0) follow = 0;
+    else if (slow > 0) {
+      follow *= 0.3;
+      fovAdd -= 7 * Math.min(1, slow / 0.4);
+    }
     if (!camState.init || c.snap) {
       Object.assign(camState, { x: px, y: py, z: pz, lx, ly, lz, init: true, roll, fov: (c.fov ?? (c.portrait ? 66 : 58)) + fovAdd });
     } else {
@@ -353,7 +447,8 @@ export function createScene(canvas, { poster = false } = {}) {
     lastNow = now;
     let dt = Math.min(0.1, f.dt);
     hitstop = Math.max(0, hitstop - dt);
-    const fxDt = hitstop > 0 ? dt * 0.12 : dt;
+    slow = Math.max(0, slow - dt);
+    const fxDt = hitstop > 0 ? dt * 0.12 : slow > 0 ? dt * (0.25 + 0.75 * Math.pow(1 - slow / slowFor, 3)) : dt;
     // boats
     const wakes = [];
     let focus = null;
@@ -454,7 +549,8 @@ export function createScene(canvas, { poster = false } = {}) {
       if (ds > -6 && ds < 45) lightList.push(l);
     }
     lightList.sort((a, b) => Math.abs(a.s - fs - 8) - Math.abs(b.s - fs - 8));
-    world.setPool(lightList.slice(0, 3).map((l) => ({ x: l.x, y: l.y + 0.3, z: l.z })), f.pulse ?? 0);
+    if (podium && f.camera?.mode === 'results') world.setPool(podium.userData.lights, 0.4);
+    else world.setPool(lightList.slice(0, 3).map((l) => ({ x: l.x, y: l.y + 0.3, z: l.z })), f.pulse ?? 0);
     const streaks = lightList.slice(0, 3).map((l) => ({ x: l.x, z: l.z, i: 0.55 + (f.pulse ?? 0) * 0.35 }));
     // the focused boat's lanterns light it and the water around it
     const fm = focus ? hulls.get(focus.id) : null;
@@ -562,6 +658,12 @@ export function createScene(canvas, { poster = false } = {}) {
     /** A short push in (a big moment). */
     punch(amount = 1) {
       if (!reduced) camState.punch = Math.min(1.2, camState.punch + amount);
+    },
+    /** Slow motion for a moment (the finish): the sparks hang and the camera drifts in close. */
+    slowmo(secs = 1.2) {
+      if (reduced) return;
+      slow = Math.max(slow, secs);
+      slowFor = Math.max(slow, 0.01);
     },
     /** Freeze the camera and slow the sparks for a moment. */
     hitstop(secs = 0.08) {

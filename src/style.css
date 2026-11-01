@@ -881,6 +881,14 @@ button:focus-visible {
   color: var(--cream);
 }
 
+.stamp.small {
+  top: calc(var(--safe-tl) + 24px);
+  font-size: clamp(48px, 8vw, 72px);
+  transform: translate(-50%, 0) rotate(-4deg);
+  transition: top 0.5s ease, font-size 0.5s ease, transform 0.5s ease;
+  animation: none;
+}
+
 @keyframes stamp {
   0% {
     opacity: 0;
