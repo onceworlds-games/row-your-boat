@@ -127,7 +127,7 @@ export function createRaceSim({ n = 1, seats, me = null, key = 'race', ease = 1,
       const out = [];
       for (const [id, r] of racers) {
         const b = r.boat;
-        out.push({ id, x: b.x, z: b.z, h: b.h, s: b.s, v: b.v, c: r.judge.state.level - 1, k: r.strokes, ls: r.last?.side ?? 0, lq: qualityCode(r.last?.kind), f: b.finished ? 1 : 0, ft: b.ft, sim: true, slip: b.slip, rapids: b.rapids, whirl: b.whirl });
+        out.push({ id, x: b.x, z: b.z, h: b.h, s: b.s, d: b.d, v: b.v, c: r.judge.state.level - 1, k: r.strokes, ls: r.last?.side ?? 0, lq: qualityCode(r.last?.kind), f: b.finished ? 1 : 0, ft: b.ft, sim: true, slip: b.slip, rapids: b.rapids, whirl: b.whirl });
       }
       for (const [id, v] of views) out.push({ id, ...v, sim: false });
       return out;

@@ -57,6 +57,8 @@ const SHOTS = {
   win: { n: 1 }, // first through the lantern arch
   multi: { n: 5, s: 226 }, // a pack through the Library's shelves
   icon: { n: 1, s: 136 }, // one boat, lanterns lit, in a ring of ripples
+  closeup: { n: 1, s: 136 }, // the rower, up close from the stern
+  side: { n: 2, s: 200 }, // a boat side on
 };
 
 const looks = [playerLook({ shirt: 7, skin: 1, pants: 14 }, 0, 'nightcap'), ...ROWER_NAMES.map(rowerLook)];
@@ -159,6 +161,8 @@ function cameraFor(name, b) {
   if (name === 'action') return { pos: at(-4.6, -3.4, 1.35), look: at(2.5, 0.6, 1.2), fov: 56 };
   if (name === 'win') return { pos: at(-7.5, 0.7, 2.1), look: at(9, 0, 3.4), fov: 60 };
   if (name === 'multi') return { pos: at(-24, 3.5, 8.5), look: at(1, -0.5, 0), fov: 50 };
+  if (name === 'closeup') return { pos: at(-3.4, 1.4, 1.7), look: at(0.2, 0, 0.85), fov: 40 };
+  if (name === 'side') return { pos: at(0.3, 6.5, 1.4), look: at(0.3, 0, 0.6), fov: 40 };
   return { pos: at(-5, -4.2, 5.4), look: at(0.6, 0, 0.7), fov: 36 };
 }
 

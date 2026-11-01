@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { createWorld } from './world.js';
-import { createWater } from './water.js';
+import { createWater, RING } from './water.js';
 import { createRiver } from './river.js';
 import { createDream } from './dreams.js';
 import { createBoatMesh } from './boats.js';
@@ -14,6 +14,7 @@ import { G } from './kit.js';
 const v3 = new THREE.Vector3();
 const v4 = new THREE.Vector3();
 const look = new THREE.Vector3();
+const KINDS = ['free', 'perfect', 'good', 'splash', 'both', 'free'];
 
 export function createScene(canvas, { poster = false } = {}) {
   const world = createWorld(canvas, { poster });
@@ -24,6 +25,7 @@ export function createScene(canvas, { poster = false } = {}) {
   let ghost = null;
   let podium = null;
   let reduced = false;
+  let hitstop = 0;
 
   // ---------------------------------------------------------------- loading a stream
 
@@ -40,7 +42,7 @@ export function createScene(canvas, { poster = false } = {}) {
     const water = createWater(course, theme);
     water.setMoon(world.moonDir);
     const river = createRiver(course, stream.id, theme);
-    const dream = createDream(course, stream.id);
+    const dream = createDream(course, stream.id, theme);
     scene.add(water.mesh, river.group, dream.group);
     const lights = [...river.lanterns, ...dream.lights.map((p) => ({ x: p.x, y: p.y, z: p.z, s: course.locate(p.x, p.z).s }))];
     cur = { id: stream.id, stream, course, theme, water, river, dream, lights };
@@ -53,7 +55,7 @@ export function createScene(canvas, { poster = false } = {}) {
   function disposeTree(o) {
     o.traverse((n) => {
       if (n.geometry && !n.geometry.userData.shared) n.geometry.dispose?.();
-      if (n.material) for (const m of Array.isArray(n.material) ? n.material : [n.material]) m.dispose?.();
+      if (n.material) for (const m of Array.isArray(n.material) ? n.material : [n.material]) if (!m.userData?.shared) m.dispose?.();
     });
   }
 
@@ -70,14 +72,10 @@ export function createScene(canvas, { poster = false } = {}) {
     }
     for (const s of seats) {
       let m = hulls.get(s.id);
-      if (m && m.look.paint !== s.look.paint) {
-        scene.remove(m.group);
-        hulls.delete(s.id);
-        m = null;
-      }
       if (!m) {
         m = createBoatMesh(s.look);
         m.lastK = -1;
+        m.finAt = -1;
         scene.add(m.group);
         hulls.set(s.id, m);
       } else m.setLook(s.look);
@@ -120,12 +118,10 @@ export function createScene(canvas, { poster = false } = {}) {
       const lk = looks.get(id);
       if (lk) {
         const fig = createBoatMesh(lk);
-        // only the rower: stand them on top of the stack
+        fig.showBoat(false);
         fig.group.position.set(xs[i], heights[i] * 1.1 + 0.1 - 0.32, 0);
-        fig.group.children[0].children.forEach((ch) => {
-          if (!ch.isGroup || ch.children.length < 2) ch.visible = false;
-        });
         fig.group.rotation.y = Math.PI;
+        fig.pose(i === 0 ? 'cheer' : 'wave');
         podium.add(fig.group);
         podium.userData.figs.push(fig);
       }
@@ -140,11 +136,11 @@ export function createScene(canvas, { poster = false } = {}) {
 
   // ---------------------------------------------------------------- camera
 
-  const camState = { h: 0, x: 0, y: 4, z: 8, lx: 0, ly: 0, lz: 0, trauma: 0, init: false, mode: '' };
+  const camState = { h: 0, x: 0, y: 4, z: 8, lx: 0, ly: 0, lz: 0, trauma: 0, shX: 0, shZ: 0, init: false, mode: '', roll: 0, fov: 58, punch: 0, prevH: 0 };
 
   /**
-   * Place the camera. c: { mode: 'race' | 'intro' | 'title' | 'dock' | 'finish' | 'results' | 'spectate', boat, k (0-1
-   * intro progress), portrait, push (0-1), beat (0-1), dt, now, snap }.
+   * Place the camera. c: { mode: 'race' | 'intro' | 'title' | 'dock' | 'finish' | 'results' | 'spectate' | 'fixed', boat,
+   * k (0-1 intro progress), portrait, push (0-1), beat (0-1), dt, now, snap }.
    */
   function placeCamera(c) {
     const course = cur?.course;
@@ -157,6 +153,8 @@ export function createScene(canvas, { poster = false } = {}) {
     let lx;
     let ly;
     let lz;
+    let roll = 0;
+    let fovAdd = 0;
     let follow = 1 - Math.exp(-dt * 5);
     if (c.mode !== camState.mode) {
       camState.mode = c.mode;
@@ -164,57 +162,72 @@ export function createScene(canvas, { poster = false } = {}) {
       if (c.snap) camState.init = false;
     }
     if ((c.mode === 'race' || c.mode === 'spectate' || c.mode === 'intro' || c.mode === 'finish') && b) {
-      if (!camState.init) camState.h = b.h;
-      camState.h += wrapA(b.h - camState.h) * (1 - Math.exp(-dt * (c.mode === 'finish' ? 1 : 3.2)));
+      // follow the boat, leaning toward where the river goes next
+      const ahead = course.at(Math.min(course.total, b.s + 9));
+      const want = b.h + wrapA(ahead.h - b.h) * 0.4;
+      if (!camState.init) {
+        camState.h = want;
+        camState.prevH = want;
+      }
+      camState.h += wrapA(want - camState.h) * (1 - Math.exp(-dt * (c.mode === 'finish' ? 1 : 3)));
       const h = camState.h;
+      const turn = wrapA(h - camState.prevH) / Math.max(0.001, dt);
+      camState.prevH = h;
+      roll = reduced ? 0 : Math.max(-0.06, Math.min(0.06, -turn * 0.12));
       const fx_ = Math.sin(h);
       const fz = -Math.cos(h);
-      const back = (c.portrait ? 9.5 : 7) * (1 - 0.08 * (c.push ?? 0)) + (c.mode === 'spectate' ? 3 : 0);
-      const up = (c.portrait ? 4.6 : 3.2) + (c.mode === 'spectate' ? 2 : 0);
-      const ahead = c.portrait ? 13 : 10;
-      const lean = wrapA(b.h - h) * 2.2;
+      const punch = camState.punch;
+      const back = (c.portrait ? 9.2 : 6.8) * (1 - 0.07 * (c.push ?? 0)) * (1 - punch * 0.12) + (c.mode === 'spectate' ? 3 : 0);
+      const up = (c.portrait ? 4.5 : 3.0) + (c.mode === 'spectate' ? 2 : 0);
+      const lean = wrapA(b.h - h) * 2.4;
       px = b.x - fx_ * back + Math.cos(h) * lean;
       pz = b.z - fz * back + Math.sin(h) * lean;
-      py = up + Math.sin((c.beat ?? 0) * Math.PI * 2) * 0.05;
-      lx = b.x + fx_ * ahead;
-      lz = b.z + fz * ahead;
-      ly = 0.6;
+      py = up + Math.sin((c.beat ?? 0) * Math.PI * 2) * 0.04;
+      // look a little ahead down the river, not just along the bow
+      const bd = Number.isFinite(b.d) ? b.d : course.locate(b.x, b.z).d;
+      const tgt = course.point(Math.min(course.total, b.s + (c.portrait ? 13 : 11)), (Number.isFinite(bd) ? bd : 0) * 0.5);
+      lx = tgt.x * 0.7 + (b.x + fx_ * 11) * 0.3;
+      lz = tgt.z * 0.7 + (b.z + fz * 11) * 0.3;
+      ly = 0.7;
+      fovAdd = reduced ? 0 : Math.max(-2, Math.min(7, ((b.v ?? 4) - 4.6) * 1.7)) - punch * 3;
       if (c.mode === 'intro') {
         // swing from beside the boat round to behind it
         const k = smooth(c.k ?? 1);
         const side = 1 - k;
-        const sa = h + Math.PI * 0.55 * side;
-        const dist = back + side * 6;
+        const sa = h + Math.PI * 0.6 * side;
+        const dist = back * (1 - side * 0.3) + side * 3;
         px = b.x - Math.sin(sa) * dist;
         pz = b.z + Math.cos(sa) * dist;
-        py = up + side * 3;
-        lx = b.x + fx_ * ahead * k;
-        lz = b.z + fz * ahead * k;
-        ly = 0.6 + side * 0.8;
+        py = up * (1 - side * 0.45) + side * 0.6;
+        lx = b.x + fx_ * 11 * k;
+        lz = b.z + fz * 11 * k;
+        ly = 0.9 + side * 0.4;
         follow = 1 - Math.exp(-dt * 8);
+        fovAdd = -side * 8;
+        roll = 0;
       }
       if (c.mode === 'finish') {
-        // the orbit starts from where the camera is, so it swings round the boat instead of cutting through it
         if (camState.orbitFor !== b.id || !Number.isFinite(camState.orbit)) {
           camState.orbitFor = b.id;
           camState.orbit = Math.atan2(camState.x - b.x, camState.z - b.z);
         }
-        camState.orbit += dt * 0.25;
+        camState.orbit += dt * 0.28;
         const a = camState.orbit;
-        px = b.x + Math.sin(a) * 9;
-        pz = b.z + Math.cos(a) * 9;
-        py = 3.4;
+        px = b.x + Math.sin(a) * 6.5;
+        pz = b.z + Math.cos(a) * 6.5;
+        py = 2.2;
         lx = b.x;
         lz = b.z;
-        ly = 1;
+        ly = 1.1;
         follow = 1 - Math.exp(-dt * 2);
+        fovAdd = -6;
+        roll = 0;
       }
     } else if (c.mode === 'title') {
       // a slow glide along the river, low over the water, looking back at the boats
       const t = c.now ?? 0;
       const s = Math.max(course.start, Math.min(course.total - 30, (c.focusS ?? course.start) + 11 + Math.sin(t * 0.07) * 4));
       const a = course.at(s);
-      // near the middle of the river (the banks' lamp posts stay out of the lens), stepping round a rock just in front
       let d = Math.sin(t * 0.05) * a.hw * 0.25;
       for (const o of course.rocks) {
         if (o.s < s - 7 || o.s > s + 1.5 || Math.abs(o.d - d) > o.r + 2.4) continue;
@@ -224,8 +237,7 @@ export function createScene(canvas, { poster = false } = {}) {
       const p = course.point(s, d);
       px = p.x;
       pz = p.z;
-      // a tall screen looks down on the river from higher, so the boats sit under the title
-      py = (c.portrait ? 4 : 2) + Math.sin(t * 0.11) * 0.3;
+      py = (c.portrait ? 3.6 : 1.8) + Math.sin(t * 0.11) * 0.3;
       const q = course.point(Math.max(0, s - 14), d * 0.2);
       lx = q.x;
       lz = q.z;
@@ -243,7 +255,6 @@ export function createScene(canvas, { poster = false } = {}) {
       ly = c.portrait ? 0.4 : 1.1;
       follow = 1 - Math.exp(-dt * 3);
     } else if (c.mode === 'fixed') {
-      // a staged shot (posters): exactly here, looking there
       [px, py, pz] = c.pos;
       [lx, ly, lz] = c.look;
       follow = 1;
@@ -259,8 +270,9 @@ export function createScene(canvas, { poster = false } = {}) {
       ly = 2.6;
       follow = 1 - Math.exp(-dt * 2);
     } else return;
+    if (hitstop > 0) follow = 0;
     if (!camState.init || c.snap) {
-      Object.assign(camState, { x: px, y: py, z: pz, lx, ly, lz, init: true });
+      Object.assign(camState, { x: px, y: py, z: pz, lx, ly, lz, init: true, roll, fov: (c.fov ?? (c.portrait ? 66 : 58)) + fovAdd });
     } else {
       camState.x += (px - camState.x) * follow;
       camState.y += (py - camState.y) * follow;
@@ -268,16 +280,22 @@ export function createScene(canvas, { poster = false } = {}) {
       camState.lx += (lx - camState.lx) * follow;
       camState.ly += (ly - camState.ly) * follow;
       camState.lz += (lz - camState.lz) * follow;
+      camState.roll += (roll - camState.roll) * Math.min(1, dt * 3);
     }
-    camState.trauma = Math.max(0, camState.trauma - dt * 1.6);
+    camState.trauma = Math.max(0, camState.trauma - dt * 1.7);
+    camState.punch = Math.max(0, camState.punch - dt * 2.2);
     const sh = reduced ? 0 : camState.trauma * camState.trauma;
     const n = c.now ?? 0;
-    camera.position.set(camState.x + Math.sin(n * 37) * sh * 0.35, camState.y + Math.sin(n * 41 + 1) * sh * 0.25, camState.z + Math.sin(n * 31 + 2) * sh * 0.35);
+    const jx = (Math.sin(n * 37) + Math.sin(n * 61) * 0.5) * sh * 0.3 + camState.shX * sh;
+    const jz = (Math.sin(n * 31 + 2) + Math.sin(n * 53) * 0.5) * sh * 0.3 + camState.shZ * sh;
+    camera.position.set(camState.x + jx, camState.y + Math.sin(n * 41 + 1) * sh * 0.22, camState.z + jz);
     look.set(camState.lx, camState.ly, camState.lz);
     camera.lookAt(look);
-    const fov = c.fov ?? (c.portrait ? 66 : 58);
-    if (Math.abs(camera.fov - fov) > 0.01) {
-      camera.fov = fov;
+    camera.rotateZ(camState.roll);
+    const fov = (c.fov ?? (c.portrait ? 66 : 58)) + fovAdd;
+    camState.fov += (fov - camState.fov) * Math.min(1, dt * 4);
+    if (Math.abs(camera.fov - camState.fov) > 0.01) {
+      camera.fov = camState.fov;
       camera.updateProjectionMatrix();
     }
   }
@@ -286,16 +304,19 @@ export function createScene(canvas, { poster = false } = {}) {
 
   const lightList = [];
   const strokeV = new THREE.Vector3();
+  const bowV = new THREE.Vector3();
   /**
-   * f: { now, dt, t (song time), B (beat position), pulse (0-1), boats: [{ id, x, z, h, s, v, c, k, ls, lq, f, away, ghost
-   * }], meId, ripples, oar: { s, d, glow }, ghost: { x, z, h } | null, calm (0-1), camera: {...}, arch: { count, finishLit,
-   * sign } }
+   * f: { now, dt, t (song time), B (beat position), pulse (0-1), boats: [{ id, x, z, h, s, d, v, c, k, ls, lq, f, away,
+   * hidden, mood }], meId, focusId, focusS, ripples, oar: { s, d, glow }, ghost: { x, z, h } | null, calm (0-1),
+   * camera: {...}, arch: { count, finishLit, sign } }
    */
   function frame(f) {
     if (!cur) return;
     const { course, water, river, dream } = cur;
     const now = f.now;
-    const dt = Math.min(0.1, f.dt);
+    let dt = Math.min(0.1, f.dt);
+    hitstop = Math.max(0, hitstop - dt);
+    const fxDt = hitstop > 0 ? dt * 0.12 : dt;
     // boats
     const wakes = [];
     let focus = null;
@@ -304,45 +325,67 @@ export function createScene(canvas, { poster = false } = {}) {
       if (!m) continue;
       m.group.visible = !b.hidden;
       m.group.position.set(b.x, 0, b.z);
+      m.setNear(b.id !== f.focusId && (b.x - camera.position.x) ** 2 + (b.z - camera.position.z) ** 2 < 36);
       m.group.rotation.y = -b.h;
+      const mine = b.id === f.meId;
       const lvl = Math.max(1, Math.min(4, (b.c | 0) + 1));
       if (m.level !== lvl) {
-        if (lvl < m.level && b.id === f.meId) {
+        if (mine && lvl < m.level) {
           const l = m.lanterns[lvl];
           if (l) {
             l.mesh.getWorldPosition(v3);
             fx.smoke(v3.x, v3.y, v3.z);
           }
         }
-        if (lvl > m.level && b.id === f.meId) {
+        if (mine && lvl > m.level) {
           const l = m.lanterns[lvl - 1];
           if (l) {
             l.mesh.getWorldPosition(v3);
-            fx.lantern(v3.x, v3.y, v3.z);
+            fx.lantern(v3.x, v3.y, v3.z, m.look.lantern);
           }
         }
         m.setLevel(lvl, m.lastK < 0);
       }
-      // a new stroke: oars and spray
+      const near = Math.abs(b.s - (f.focusS ?? b.s)) < 40;
+      // a new stroke: oars, spray and a ring on the water from each blade
       if (m.lastK >= 0 && b.k > m.lastK && !b.away) {
-        const kind = ['free', 'perfect', 'good', 'splash', 'both', 'free'][b.lq] ?? 'good';
+        const kind = KINDS[b.lq] ?? 'good';
         m.stroke(b.ls, kind);
-        const fxx = Math.sin(b.h);
-        const fzz = -Math.cos(b.h);
-        const near = Math.abs(b.s - (f.focusS ?? b.s)) < 40;
         if (near) {
+          const fxx = Math.sin(b.h);
+          const fzz = -Math.cos(b.h);
           for (const side of b.ls === 0 ? [-1, 1] : [b.ls]) {
             m.oarTip(side, strokeV);
-            fx.oar(strokeV.x, strokeV.z, kind, fxx, fzz);
+            fx.oar(strokeV.x, strokeV.z, kind, fxx, fzz, mine);
+            const ring = !mine ? RING.splash : b.ls === 0 && (kind === 'perfect' || kind === 'good') ? RING.pull : kind === 'perfect' ? RING.perfect : kind === 'good' ? RING.good : RING.splash;
+            water.ring(strokeV.x, strokeV.z, now, ring);
           }
         }
       }
       m.lastK = b.k;
-      m.update(dt, now, { v: b.v, away: b.away, finished: b.f, wave: b.rapids ?? 0 });
+      // the rower's mood: cheer over the line, slump when away
+      let mood = b.mood ?? 'row';
+      if (!b.mood) {
+        if (b.away) mood = 'slump';
+        else if (b.f) {
+          if (m.finAt < 0) m.finAt = now;
+          mood = now - m.finAt < 3.5 ? 'cheer' : 'wave';
+        } else m.finAt = -1;
+      }
+      m.pose(mood);
+      // the head turns to look over a shoulder at a bend ahead
+      const hd = wrapA(course.at(Math.min(course.total, b.s + 14)).h - b.h);
+      m.update(fxDt, now, { v: b.v, away: b.away, finished: b.f, wave: b.rapids ?? 0, look: Math.max(-1, Math.min(1, -hd * 2.2)), lanternPulse: mine ? f.pulse ?? 0 : 0 });
+      if (near) {
+        for (const p of m.takeDrips()) {
+          fx.drip(p.x, p.y, p.z);
+          water.ring(p.x, p.z, now + 0.12, RING.splash);
+        }
+      } else m.takeDrips();
       if (!b.hidden) wakes.push({ x: b.x, z: b.z, h: b.h, v: b.away ? 0 : Math.max(b.v, 0.5) });
       if (b.id === f.focusId) focus = b;
       if (Math.abs(b.s - (f.focusS ?? b.s)) < 30 && !b.away) {
-        fx.wake(b.x, b.z, Math.sin(b.h), -Math.cos(b.h), b.v, b.slip);
+        fx.wake(b.x, b.z, Math.sin(b.h), -Math.cos(b.h), b.v, b.slip, mine ? m.look.wake : null);
         if ((b.rapids ?? 0) > 0.5) fx.foam(b.x, b.z, 0.5);
       }
     }
@@ -355,14 +398,15 @@ export function createScene(canvas, { poster = false } = {}) {
     water.setBoats(wakes.sort((a, b) => dist2(a, f.focus) - dist2(b, f.focus)).slice(0, 6));
     // the water
     water.uniforms.uTime.value = now;
+    water.setMirror(world.mirror);
     water.setRipples(f.ripples ?? []);
-    if (f.oar) water.setOar(f.oar.s, f.oar.d, f.oar.glow);
-    water.uniforms.uRipOn.value = f.oar ? 1 : 0;
+    if (f.oar) water.setOar(f.oar.s, f.oar.d, f.oar.glow, true);
+    else water.setOar(0, 0, 0, false);
     water.uniforms.uCalm.value = f.calm ?? 0;
     // the river: lanterns pulse on the beat; the nearest lanterns get the real lights
     river.update(f.t ?? 0, f.focusS ?? course.start, f.pulse ?? 0, now);
     river.swing(f.B ?? 0);
-    dream.tick(now, f.B ?? 0);
+    dream.tick(now, f.B ?? 0, f.pulse ?? 0);
     const fs = f.focusS ?? course.start;
     lightList.length = 0;
     for (const l of cur.lights) {
@@ -372,21 +416,21 @@ export function createScene(canvas, { poster = false } = {}) {
     lightList.sort((a, b) => Math.abs(a.s - fs - 8) - Math.abs(b.s - fs - 8));
     world.setPool(lightList.slice(0, 3).map((l) => ({ x: l.x, y: l.y + 0.3, z: l.z })), f.pulse ?? 0);
     const streaks = lightList.slice(0, 3).map((l) => ({ x: l.x, z: l.z, i: 0.55 + (f.pulse ?? 0) * 0.35 }));
-    // the bow lantern's beam
-    if (focus && f.beam !== false) {
-      const fxx = Math.sin(focus.h);
-      const fzz = -Math.cos(focus.h);
-      world.setBeam(true, focus.x + fxx * 1.5, 2.2, focus.z + fzz * 1.5, focus.h, 0.6 + 0.4 * ((focus.c | 0) + 1) / 4);
-      streaks.push({ x: focus.x + fxx * 4, z: focus.z + fzz * 4, i: 0.25 + 0.15 * (focus.c | 0) });
-    } else world.setBeam(false);
+    // the focused boat's lanterns light it and the water around it
+    const fm = focus ? hulls.get(focus.id) : null;
+    if (focus && fm && f.beam !== false) {
+      fm.tilt.localToWorld(bowV.set(0, 1.55, -1.45));
+      const sx = focus.x - Math.sin(focus.h) * 2.6;
+      const sz = focus.z + Math.cos(focus.h) * 2.6;
+      world.setBow({ x: bowV.x, y: bowV.y, z: bowV.z, sx, sy: 1.6, sz }, 0.45 + 0.55 * ((focus.c | 0) + 1) / 4);
+      streaks.push({ x: bowV.x, z: bowV.z, i: 0.25 + 0.15 * (focus.c | 0) });
+    } else world.setBow(null);
     water.setLights(streaks);
-    // arches: count-in lanterns, the finish arch's closing lanterns and clock
     if (f.arch) {
       river.arches.start.light(f.arch.count ?? 0);
       river.arches.finish.light(f.arch.finishLit ?? 9);
       river.arches.finish.sign?.set(f.arch.sign ?? '');
     }
-    // white water at the dream's falls
     for (const p of dream.foam) {
       if (Math.abs(p.s - fs) < 50) {
         const q = course.point(p.s, p.d);
@@ -395,17 +439,14 @@ export function createScene(canvas, { poster = false } = {}) {
     }
     if ((f.calm ?? 0) > 0.5 && focus) fx.firefly(focus.x + Math.sin(focus.h) * 8, focus.z - Math.cos(focus.h) * 8);
     if (podium) {
-      for (const [i, fig] of podium.userData.figs.entries()) {
-        fig.update(dt, now, {});
-        fig.group.position.y += Math.abs(Math.sin(now * 4 + i)) * 0.012;
-      }
+      for (const fig of podium.userData.figs) fig.update(dt, now, {});
       if (Math.random() < 0.6) fx.confetti(podium.position.x, 9, podium.position.z);
     }
-    fx.update(dt, now);
+    fx.update(fxDt, now);
     if (f.camera) placeCamera({ ...f.camera, dt, now, boat: f.camera.boat ?? focus, focusS: fs });
     v4.set(camera.position.x, 0, camera.position.z);
-    world.follow(focus ? v3.set(focus.x, 0, focus.z) : v4, now);
-    if (f.render !== false) world.render();
+    world.follow(focus ? v3.set(focus.x, 0, focus.z) : v4, now, dt);
+    if (f.render !== false) world.render(dt);
   }
 
   return {
@@ -421,8 +462,22 @@ export function createScene(canvas, { poster = false } = {}) {
     get current() {
       return cur;
     },
-    shake(amount) {
+    /** Shake the camera; (dx, dz) pushes it that way (a bump from a side). */
+    shake(amount, dx = 0, dz = 0) {
       camState.trauma = Math.min(1, camState.trauma + amount);
+      camState.shX = dx * 0.5;
+      camState.shZ = dz * 0.5;
+    },
+    /** A short push in (a big moment). */
+    punch(amount = 1) {
+      if (!reduced) camState.punch = Math.min(1.2, camState.punch + amount);
+    },
+    /** Freeze the camera and slow the sparks for a moment. */
+    hitstop(secs = 0.08) {
+      if (!reduced) hitstop = Math.max(hitstop, secs);
+    },
+    flash(color, amount) {
+      if (!reduced) world.setFlash(color, amount);
     },
     setReduced(r) {
       reduced = r;

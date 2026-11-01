@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { G, createKit, glowTexture, srand } from './kit.js';
+import { NO_MIRROR } from './world.js';
 
 const tmp = new THREE.Object3D();
 const c3 = new THREE.Color();
@@ -392,6 +393,7 @@ export function createRiver(course, id, theme) {
   const mist = Array.from({ length: 12 }, (_, i) => {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, color: mistCol, transparent: true, opacity: id === 'cloudbank' ? 0.5 : 0.3, depthWrite: false, fog: true }));
     sp.scale.set(22, 7, 1);
+    sp.layers.set(NO_MIRROR);
     sp.userData = { s: -999, d: 0, k: i };
     group.add(sp);
     return sp;

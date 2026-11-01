@@ -20,6 +20,17 @@ function localCopy() {
   return location.protocol === 'file:' || h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.localhost');
 }
 
+// a local switch: keep the console's errors where a capture can read them (window.__errs)
+if (q.has('debug')) {
+  window.__errs = [];
+  const log = console.error;
+  console.error = (...a) => {
+    window.__errs.push(a.map((x) => String(x?.stack ?? x)).join(' ').slice(0, 1200));
+    log.apply(console, a);
+  };
+  addEventListener('error', (e) => window.__errs.push(String(e.error?.stack ?? e.message).slice(0, 1200)));
+}
+
 function flagsOf() {
   if (!localCopy()) return {};
   const int = (k, lo, hi) => {
@@ -39,6 +50,8 @@ function flagsOf() {
   };
 }
 
+const QUALITY = new URLSearchParams(location.search).get('quality');
+
 function settings() {
   const s = ow.settings;
   let quality = 'medium';
@@ -49,6 +62,8 @@ function settings() {
     pr = s.pixelRatio(2) || pr;
     reduced = !!s.reducedMotion;
   } catch {}
+  // a local switch for looking at one quality (captures, tests)
+  if (['low', 'medium', 'high'].includes(QUALITY)) quality = QUALITY;
   return { quality, pr, reduced };
 }
 

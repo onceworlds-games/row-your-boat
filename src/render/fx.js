@@ -3,6 +3,8 @@
 
 import * as THREE from 'three';
 import { G, glowTexture } from './kit.js';
+import { NO_MIRROR } from './world.js';
+import { LANTERN_COLORS } from '../cosmetics.js';
 
 const VERT = /* glsl */ `
 attribute float aSize; attribute vec4 aColor;
@@ -44,6 +46,7 @@ function pool(scene, count, additive) {
   const points = new THREE.Points(geo, mat);
   points.frustumCulled = false;
   points.renderOrder = 5;
+  points.layers.set(NO_MIRROR);
   scene.add(points);
   let next = 0;
   const col = new THREE.Color();
@@ -129,7 +132,8 @@ export function createFx(scene) {
       glow.mat.uniforms.uScale.value = 300 * px;
     },
     /** An oar entering the water. kind: perfect, good, splash, both, free. (x, z): the blade; (fx, fz): the boat's forward. */
-    oar(x, z, kind, fx, fz) {
+    oar(x, z, kind, fx, fz, mine = true) {
+      if (!mine && R() < 0.5) return;
       const n = Math.round((kind === 'splash' ? 26 : kind === 'perfect' ? 16 : 11) * scale);
       for (let i = 0; i < n; i++) {
         const up = kind === 'splash' ? 2.4 + R() * 2.6 : 1.4 + R() * 1.8;
@@ -158,9 +162,14 @@ export function createFx(scene) {
     smoke(x, y, z) {
       for (let i = 0; i < 6; i++) spray.emit({ x: x + (R() - 0.5) * 0.15, y, z: z + (R() - 0.5) * 0.15, vx: (R() - 0.5) * 0.3, vy: 0.6 + R() * 0.4, vz: (R() - 0.5) * 0.3, life: 1.0 + R() * 0.4, size: 0.25, color: '#8a8aa0', a: 0.45, drag: 1, grow: 2 });
     },
-    /** A lantern lit: a soft burst. */
-    lantern(x, y, z) {
-      for (let i = 0; i < 8 * scale; i++) glow.emit({ x, y, z, vx: (R() - 0.5) * 1.5, vy: (R() - 0.3) * 1.5, vz: (R() - 0.5) * 1.5, life: 0.5, size: 0.35, color: '#FFB547', a: 1, drag: 3 });
+    /** A lantern lit: a soft burst in its colour. */
+    lantern(x, y, z, color = 'amber') {
+      const c = LANTERN_COLORS[color] ?? '#FFB547';
+      for (let i = 0; i < 14 * scale; i++) glow.emit({ x, y, z, vx: (R() - 0.5) * 2.2, vy: (R() - 0.2) * 2, vz: (R() - 0.5) * 2.2, life: 0.55 + R() * 0.3, size: 0.3 + R() * 0.2, color: R() < 0.3 ? '#fff4dc' : c, a: 1, drag: 3 });
+    },
+    /** Drops falling from a blade on the recovery. */
+    drip(x, y, z) {
+      for (let i = 0; i < 5 * scale; i++) spray.emit({ x: x + (R() - 0.5) * 0.25, y: Math.max(0.15, y) + R() * 0.1, z: z + (R() - 0.5) * 0.25, vx: (R() - 0.5) * 0.3, vy: -0.2 - R() * 0.5, vz: (R() - 0.5) * 0.3, life: 0.6, size: 0.06 + R() * 0.05, color: '#e8eeff', a: 0.8, grav: 8 });
     },
     /** Spray at the bow at speed, and silver sparkle in a slipstream. */
     wake(x, z, fx, fz, v, slip) {
