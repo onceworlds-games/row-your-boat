@@ -27,6 +27,17 @@ export const HULL_OFF = 1.0;
 export const HULL_R = 0.7;
 export const BOAT_R = 1.1;
 export const DT = 1 / 120;
+/** A droplet's push (m/s) and its turn (share of a stroke's). */
+export const DROP_PUSH = 0.12;
+export const DROP_TURN = 0.4;
+/** A whole merrily rush's burst (m/s). */
+export const RUSH_PUSH = 0.7;
+/** A moonbloom: how near the boat's centre passes to take it (m) and its nudge (m/s). */
+export const BLOOM_R = 1.25;
+export const BLOOM_PUSH = 0.2;
+/** A close shave: passing a solid thing within this gap of the hull (m) without touching it, and its push. */
+export const SHAVE = 0.45;
+export const SHAVE_PUSH = 0.3;
 const SPIN_DECAY = 4;
 
 export function createBoat(course, s, d, h) {
@@ -35,6 +46,7 @@ export function createBoat(course, s, d, h) {
     x: p.x, z: p.z, h: h ?? p.h, v: 0, yaw: 0, spin: 0, s, d, i: Math.round(s),
     grace: 0, wave: -1, finished: false, ft: null, bumps: 0, slip: false, pad: false, whirl: false, rapids: 0,
     contact: 0, current: 0, ground: 0, touches: 0, stuckSince: -1, stuckS: s,
+    got: new Uint8Array(course.blooms?.length ?? 0), blooms: 0, shaves: 0, near: new Map(),
   };
 }
 
@@ -46,7 +58,45 @@ export function stroke(b, res) {
     b.v = Math.max(b.v, b.v + (target - b.v) * SURGE_K);
   }
   if (res.kind === 'splash') b.v *= SPLASH_SLOW;
-  if (res.turn) b.yaw += res.turn * YAW;
+  if (res.kind === 'drop') {
+    b.v += DROP_PUSH;
+    if (res.turn) b.yaw += res.turn * YAW * DROP_TURN;
+  } else if (res.turn) b.yaw += res.turn * YAW;
+  if (res.rush) b.v += RUSH_PUSH;
+}
+
+/** Moonblooms the boat sails over: taken, a nudge each. */
+function takeBlooms(b, c, events) {
+  const list = c.blooms;
+  if (!list?.length) return;
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i];
+    if (m.s < b.s - 3) continue;
+    if (m.s > b.s + 3) break;
+    if (b.got[i]) continue;
+    if ((m.x - b.x) ** 2 + (m.z - b.z) ** 2 < BLOOM_R * BLOOM_R) {
+      b.got[i] = 1;
+      b.blooms++;
+      b.v += BLOOM_PUSH;
+      events.push({ type: 'bloom', i, x: m.x, z: m.z });
+    }
+  }
+}
+
+/** Near things passed: a close shave for each passed within SHAVE without a touch. */
+function passShaves(b, c, events) {
+  for (const [key, g] of b.near) {
+    const kind = key[0];
+    const i = Number(key.slice(1));
+    const o = kind === 'r' ? c.rocks[i] : kind === 'l' ? c.logs[i] : c.pendulums[i];
+    const reach = kind === 'r' ? o.r + 1.6 : kind === 'l' ? o.len / 2 + 1.2 : 2.4;
+    if (o.s > b.s - reach) continue;
+    b.near.delete(key);
+    if (g < 0) continue;
+    b.shaves++;
+    b.v += SHAVE_PUSH;
+    events.push({ type: 'shave', kind: kind === 'r' ? 'rock' : kind === 'l' ? 'log' : 'pendulum', gap: g });
+  }
 }
 
 function bumpHit(b, spin, events, kind) {
@@ -170,7 +220,18 @@ export function step(b, dt, env, events) {
   const hfz = -Math.cos(b.h);
   const rx = Math.cos(b.h);
   const rz = Math.sin(b.h);
-  const hitCircle = (ox, oz, r, kind) => {
+  const hitCircle = (ox, oz, r, kind, key) => {
+    let gap = Infinity;
+    for (const off of [HULL_OFF, -HULL_OFF]) {
+      const cx = b.x + hfx * off;
+      const cz = b.z + hfz * off;
+      gap = Math.min(gap, Math.hypot(cx - ox, cz - oz) - r - HULL_R);
+    }
+    if (key && gap < SHAVE) {
+      const was = b.near.get(key);
+      if (was === undefined) b.near.set(key, Math.max(0, gap));
+      else if (was >= 0) b.near.set(key, Math.min(was, Math.max(0, gap)));
+    }
     for (const off of [HULL_OFF, -HULL_OFF]) {
       const cx = b.x + hfx * off;
       const cz = b.z + hfz * off;
@@ -179,6 +240,7 @@ export function step(b, dt, env, events) {
       const dist = Math.hypot(dx, dz);
       const min = r + HULL_R;
       if (dist < min && dist > 1e-4) {
+        if (key) b.near.set(key, -1);
         const nx = dx / dist;
         const nz = dz / dist;
         b.x += nx * (min - dist);
@@ -190,23 +252,26 @@ export function step(b, dt, env, events) {
     }
     return false;
   };
-  for (const o of c.rocks) {
+  for (let i = 0; i < c.rocks.length; i++) {
+    const o = c.rocks[i];
     if (Math.abs(o.s - b.s) > o.r + 3) continue;
-    hitCircle(o.x, o.z, o.r, 'rock');
+    hitCircle(o.x, o.z, o.r, 'rock', `r${i}`);
   }
-  for (const l of c.logs) {
+  for (let i = 0; i < c.logs.length; i++) {
+    const l = c.logs[i];
     if (Math.abs(l.s - b.s) > l.len / 2 + 3) continue;
     const g = c.logAt(l, env.t);
     // nearest point on the log's segment to the boat
     const px = b.x - g.x;
     const pz = b.z - g.z;
     const u = Math.max(-g.half, Math.min(g.half, px * g.ux + pz * g.uz));
-    hitCircle(g.x + g.ux * u, g.z + g.uz * u, g.r, 'log');
+    hitCircle(g.x + g.ux * u, g.z + g.uz * u, g.r, 'log', `l${i}`);
   }
-  for (const p of c.pendulums) {
+  for (let i = 0; i < c.pendulums.length; i++) {
+    const p = c.pendulums[i];
     if (Math.abs(p.s - b.s) > 4) continue;
     const g = c.pendulumAt(p, env.B ?? 0);
-    hitCircle(g.x, g.z, g.r, 'pendulum');
+    hitCircle(g.x, g.z, g.r, 'pendulum', `p${i}`);
   }
 
   let loc = c.locate(b.x, b.z, b.i);
@@ -239,6 +304,8 @@ export function step(b, dt, env, events) {
   }
 
   unstick(b, c, env.t, events);
+  takeBlooms(b, c, events);
+  if (b.near.size) passShaves(b, c, events);
 
   // Other boats: each pushes itself away (the other page does the same).
   if (b.contact > 0) b.contact -= dt;

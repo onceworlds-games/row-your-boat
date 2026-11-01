@@ -271,6 +271,47 @@ export function buildCourse(def) {
     return true;
   });
 
+  // Moonblooms: short lines of floating lilies every so often, straight, sweeping across (steer on the beat to take
+  // them all) or along the short line of a split; never inside anything solid, sometimes a hand's width from it.
+  const blooms = [];
+  {
+    const B = rng(`blooms:${def.id}`);
+    const solidNear = (s, d) =>
+      rocks.some((o) => Math.hypot(o.s - s, o.d - d) < o.r + 1.0) ||
+      whirls.some((w) => Math.hypot(w.s - s, w.d - d) < w.r + 0.8) ||
+      logs.some((l) => Math.abs(l.s - s) < l.len / 2 + 1.5 && Math.abs(l.d0 - d) < l.amp + 1.6) ||
+      pendulums.some((p) => Math.abs(p.s - s) < 3);
+    let k = 0;
+    for (let s0 = start + 18; s0 < finish - 16; s0 += 26 + B.next() * 14, k++) {
+      const n = 5;
+      const gap = 2.7;
+      const isl = islandAt(s0 + gap * 2);
+      const hw = at(s0).hw - BEAM - 0.6;
+      const shape = isl ? 'split' : ['straight', 'sweep', 'arc'][Math.floor(B.next() * 3)];
+      const side = B.next() < 0.5 ? -1 : 1;
+      const d0 = side * hw * (0.25 + B.next() * 0.45);
+      for (let j = 0; j < n; j++) {
+        const s = s0 + j * gap;
+        const u = j / (n - 1);
+        let d = d0;
+        if (shape === 'split') {
+          const is = isl.island;
+          d = channelD(s, is.short || 1);
+        } else if (shape === 'sweep') d = d0 * (1 - 2 * u);
+        else if (shape === 'arc') d = d0 + Math.sin(u * Math.PI) * -side * hw * 0.3;
+        const lim = at(s).hw - BEAM - 0.6;
+        d = Math.max(-lim, Math.min(lim, d));
+        const here = islandAt(s);
+        if (here && Math.abs(d - here.c) < here.half + BEAM) continue;
+        if (solidNear(s, d)) continue;
+        // a hand's width from something solid: worth a lot to an expert, a bump to everyone else
+        const risky = rocks.some((o) => Math.hypot(o.s - s, o.d - d) < o.r + 2.6) || logs.some((l) => Math.abs(l.s - s) < l.len / 2 + 3) || !!here;
+        blooms.push({ s, d, line: k, risky, ...point(s, d) });
+      }
+    }
+    blooms.sort((a, b) => a.s - b.s);
+  }
+
   /** A log's capsule at song time t: centre, direction, half length. */
   function logAt(l, t) {
     const d = l.d0 + l.amp * Math.sin((2 * Math.PI * t) / l.period + l.ph);
@@ -285,7 +326,7 @@ export function buildCourse(def) {
   }
 
   return {
-    def, N, total, start, finish, X, Z, H, K, HW, BASE, islands, zones, rocks, logs, pads, whirls, pendulums,
+    def, N, total, start, finish, X, Z, H, K, HW, BASE, islands, zones, rocks, logs, pads, whirls, pendulums, blooms,
     at, point, locate, rapidsAt, currentAt, islandAt, logAt, pendulumAt, widestGap, gapAt, channelD,
   };
 }

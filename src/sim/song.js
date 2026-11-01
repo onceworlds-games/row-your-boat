@@ -9,6 +9,12 @@ export const TEMPO_STEP = 0.04;
 export const TEMPO_STEPS = 3;
 /** Count-in beats before beat 0 (the intro plays them). */
 export const COUNT_IN = 4;
+/** Gold beats (verse beats): the tune's long notes, "Row", "stream" and "dream". Both oars together there pull. */
+export const GOLD_VB = [0, 6, 14];
+/** The merrily bar (verse beats): its eighths between the beats come as droplets to tap. */
+export const RUSH_VB = [8, 9, 10, 11];
+/** Notes in a whole merrily rush: four beats and their eight droplets. */
+export const RUSH_NOTES = 12;
 
 /**
  * The melody of one verse: [eighth, length in eighths, semitones above the tonic]. A verse is 48 eighths; beat k is
@@ -45,7 +51,8 @@ export function makeSong(bpm, { seconds = 600 } = {}) {
   while (t < seconds) {
     const dur = base / (1 + TEMPO_STEP * Math.min(TEMPO_STEPS, breaths));
     if (inRow < ROW_BEATS) {
-      beats.push({ i: beats.length, t, dur, rest: false, row, vb: row % VERSE, breath: breaths });
+      const vb = row % VERSE;
+      beats.push({ i: beats.length, t, dur, rest: false, row, vb, breath: breaths, gold: GOLD_VB.includes(vb), rush: RUSH_VB.includes(vb) });
       row++;
       inRow++;
     } else {
@@ -60,6 +67,27 @@ export function makeSong(bpm, { seconds = 600 } = {}) {
     t += dur;
   }
   const count = Array.from({ length: COUNT_IN }, (_, k) => -(COUNT_IN - k) * base);
+  // The droplets: the second and third eighths of every merrily beat, in time order.
+  const drops = [];
+  for (const b of beats) {
+    if (!b.rush) continue;
+    for (const k of [1, 2]) drops.push({ n: drops.length, t: b.t + (b.dur * k) / 3, beat: b.i, k, verse: Math.floor(b.row / VERSE) });
+  }
+
+  /** The droplet nearest `time`, or null. */
+  function nearestDrop(time) {
+    let lo = 0;
+    let hi = drops.length - 1;
+    if (hi < 0) return null;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (drops[mid].t <= time) lo = mid;
+      else hi = mid - 1;
+    }
+    const a = drops[lo];
+    const b = drops[lo + 1];
+    return b && Math.abs(b.t - time) < Math.abs(a.t - time) ? b : a;
+  }
 
   /** Index of the last beat that starts at or before `time` (-1 before the first). */
   function indexAt(time) {
@@ -103,5 +131,5 @@ export function makeSong(bpm, { seconds = 600 } = {}) {
     return { beat: b, f: Math.min(1, (time - b.t) / b.dur), dur: b.dur };
   }
 
-  return { bpm, base, beats, count, indexAt, nearestRow, resting, phase };
+  return { bpm, base, beats, drops, count, indexAt, nearestRow, nearestDrop, resting, phase };
 }

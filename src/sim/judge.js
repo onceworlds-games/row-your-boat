@@ -1,9 +1,14 @@
-// Judging strokes against the beat, and the combo ("merrily": the four bow lanterns). Pure.
+// Judging strokes against the beat, and the combo ("merrily": the four bow lanterns). Gold beats take both oars for a
+// pull; the merrily bar's droplets between the beats are taps of their own, and all twelve notes make a rush. Pure.
+
+import { RUSH_NOTES, VERSE } from './song.js';
 
 export const PERFECT = 0.045;
 export const GOOD = 0.11;
 /** Both oars within this many seconds are one straight stroke. */
 export const CHORD = 0.05;
+/** A droplet's window (seconds either side). */
+export const DROP = 0.065;
 /** Strokes this long before the first beat are ignored (no false starts). */
 export const EARLY = 0.25;
 export const STEP = 4;
@@ -11,6 +16,8 @@ export const MAX_LEVEL = 4;
 
 /** Thrust by quality. */
 export const QUALITY = { perfect: 1, good: 0.8, splash: 0.3, free: 0.35 };
+/** A pull's thrust over a single stroke's. */
+export const PULL = 1.25;
 
 const levelOf = (streak) => Math.min(MAX_LEVEL, 1 + Math.floor(streak / STEP));
 
@@ -21,6 +28,8 @@ const levelOf = (streak) => Math.min(MAX_LEVEL, 1 + Math.floor(streak / STEP));
 export function createJudge(song, { ease = 1, offset = 0 } = {}) {
   const perfect = PERFECT * ease;
   const good = GOOD * ease;
+  const dropW = DROP * ease;
+  const dropTaken = new Uint8Array(song.drops?.length ?? 0);
   const s = {
     streak: 0,
     level: 1,
@@ -36,8 +45,28 @@ export function createJudge(song, { ease = 1, offset = 0 } = {}) {
     bestRun: 0,
     bestLevel: 1,
     strokes: 0,
+    pulls: 0, // gold beats rowed with both oars
+    golds: 0, // gold beats rowed at all
+    drops: 0, // droplets tapped
+    rushes: 0, // whole merrily rushes
+    rushVerse: -1,
+    rushHits: 0,
     stopped: false,
   };
+
+  /** One more note of a verse's merrily bar; true when it completes the rush. */
+  function rushNote(verse) {
+    if (verse !== s.rushVerse) {
+      s.rushVerse = verse;
+      s.rushHits = 0;
+    }
+    s.rushHits++;
+    if (s.rushHits === RUSH_NOTES) {
+      s.rushes++;
+      return true;
+    }
+    return false;
+  }
 
   function down() {
     s.streak = s.level >= 2 ? (s.level - 2) * STEP : 0;
@@ -76,9 +105,14 @@ export function createJudge(song, { ease = 1, offset = 0 } = {}) {
       s.strokes++;
       return { kind: 'free', side, turn: side, q: QUALITY.free, level: s.level, delta, misses };
     }
-    // The other oar right after an accepted stroke on this beat: both oars together.
+    // The other oar right after an accepted stroke on this beat: both oars together (on a gold beat, a pull).
     if (b.i === s.taken && s.last && s.last.beat === b.i && s.last.side !== 0 && side !== s.last.side && Math.abs(time - s.last.t) <= CHORD) {
       s.last.side = 0;
+      if (b.gold) {
+        s.pulls++;
+        const q = PULL * QUALITY[s.last.kind];
+        return { kind: 'pull', side: 0, turn: side, q, level: s.level, delta, beat: b, misses };
+      }
       return { kind: 'both', side: 0, turn: side, q: 0, level: s.level, delta, beat: b, misses };
     }
     s.strokes++;
@@ -98,7 +132,18 @@ export function createJudge(song, { ease = 1, offset = 0 } = {}) {
         s.run = 0;
       }
       s.last = { beat: b.i, side, t: time, kind };
-      return { kind, side, turn: side, q: QUALITY[kind], level: s.level, before, delta, beat: b, misses };
+      if (b.gold) s.golds++;
+      const rush = b.rush ? rushNote(Math.floor(b.row / VERSE)) : false;
+      return { kind, side, turn: side, q: QUALITY[kind], level: s.level, before, delta, beat: b, misses, rush };
+    }
+    // A merrily droplet between the beats: a small push and a small turn; the combo stays.
+    const dp = song.nearestDrop?.(time);
+    if (dp && Math.abs(time - dp.t) <= dropW && !dropTaken[dp.n] && Math.abs(delta) > good) {
+      dropTaken[dp.n] = 1;
+      s.drops++;
+      s.strokes++;
+      const rush = rushNote(dp.verse);
+      return { kind: 'drop', side, turn: side, q: 0, level: s.level, delta: time - dp.t, drop: dp, misses, rush };
     }
     // A mistimed stroke: the combo goes. It uses up the beat it was meant for (so that beat is not also a miss);
     // a tap with no beat left to claim (mashing, a late tap after the miss) is an extra.
@@ -146,5 +191,5 @@ export function createJudge(song, { ease = 1, offset = 0 } = {}) {
     }
   }
 
-  return { state: s, stroke, advance, bump, judged, rhythm, restore, skipTo, windows: { perfect, good }, stop: () => (s.stopped = true) };
+  return { state: s, stroke, advance, bump, judged, rhythm, restore, skipTo, windows: { perfect, good, drop: dropW }, stop: () => (s.stopped = true) };
 }

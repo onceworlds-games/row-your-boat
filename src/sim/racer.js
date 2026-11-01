@@ -69,7 +69,8 @@ export function createRacer({ course, song, ease = 1, offset = 0, s, d, h, brain
           planned++;
           const beat = beats[planned];
           const p = brain.plan(boat, beat, tt);
-          if (p) plans.push(p);
+          if (Array.isArray(p)) plans.push(...p);
+          else if (p) plans.push(p);
         }
         for (let k = 0; k < plans.length; ) {
           const p = plans[k];
@@ -151,5 +152,5 @@ const round = (v, n) => {
   const m = 10 ** n;
   return Math.round(v * m) / m;
 };
-export const QUALITY_CODES = ['none', 'perfect', 'good', 'splash', 'both', 'free'];
+export const QUALITY_CODES = ['none', 'perfect', 'good', 'splash', 'both', 'free', 'pull', 'drop'];
 export const qualityCode = (kind) => Math.max(0, QUALITY_CODES.indexOf(kind ?? 'none'));

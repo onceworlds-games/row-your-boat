@@ -29,6 +29,10 @@ export function botParams(skill, habit = {}) {
     overcorrect: habit.overcorrect ?? 0,
     streaky: !!habit.streaky,
     line: 0.35 * k,
+    // the new moves: how often a gold beat gets both oars, a droplet gets tapped, a bloom line gets chased
+    pull: clamp(0.05 + 0.9 * k, 0, 0.95),
+    drops: clamp((k - 0.2) * 1.1, 0, 0.9),
+    bloom: clamp(0.05 + 0.6 * k, 0, 0.7),
   };
 }
 
@@ -69,9 +73,20 @@ export function createBrain(course, params, key, song = null) {
       return base(s);
     };
     const prof = [];
+    const blooms = course.blooms ?? [];
     for (let j = 0; j < n; j++) {
       const s = boat.s + 2 + j * STEP;
-      prof.push({ s, d: lineAt(s), hard: false });
+      let d = lineAt(s);
+      // a line of moonblooms ahead: drift onto it
+      for (let i = 0; i < blooms.length; i++) {
+        const m = blooms[i];
+        if (m.s < s - 2.5) continue;
+        if (m.s > s + 2.5) break;
+        if (boat.got?.[i] || (m.risky && P.skill < 0.8)) continue;
+        d += (m.d - d) * P.bloom;
+        break;
+      }
+      prof.push({ s, d, hard: false });
     }
     const avoid = (os, od, r) => {
       if (os < boat.s - r || os > boat.s + P.sight) return;
@@ -146,12 +161,19 @@ export function createBrain(course, params, key, song = null) {
     const cost = (sd) => Math.abs(err - sd * YAW);
     const options = [-1, 0, 1].sort((a, b) => cost(a) - cost(b));
     side = options[0];
+    const pull = beat.gold && cost(0) - cost(side) < 4 * DEG && r.chance(P.pull);
     // Rowers alternate when straight is close enough: it looks and sounds like rowing.
-    if (side === 0) side = cost(-lastSide) - cost(0) < 4 * DEG ? -lastSide : 0;
+    if (pull) side = 0;
+    else if (side === 0) side = cost(-lastSide) - cost(0) < 4 * DEG ? -lastSide : 0;
     if (wrong) side = side === 0 ? lastSide : -side;
     if (side !== 0) lastSide = side;
     const offset = clamp(P.bias + r.normal() * P.sigma, -0.24, 0.24);
-    return { t: beat.t + offset, side };
+    const main = { t: beat.t + offset, side };
+    if (!beat.rush || P.drops <= 0) return main;
+    // The merrily droplets: both, on alternate oars (their small turns cancel), or neither
+    if (!r.chance(P.drops)) return main;
+    const ds = -(side || lastSide);
+    return [main, ...[1, 2].map((k) => ({ t: beat.t + (beat.dur * k) / 3 + clamp(r.normal() * P.sigma * 0.6, -0.1, 0.1), side: k === 1 ? ds : -ds }))];
   }
 
   const api = { plan, params: P, _last: null };

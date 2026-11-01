@@ -15,7 +15,7 @@ const c3 = new THREE.Color();
 // Each dream's ground: a photographed surface (or vertex colour), how big one tile is (m), its tint and finish.
 // swap: the texture's long axis runs along the river (floorboards).
 const GROUND = {
-  bedtime: { map: 'floor', tile: 3.2, swap: true, color: '#f0c49a', bright: 1.7, rough: 0.7, ns: 0.9 },
+  bedtime: { map: 'floor', tile: 3.2, swap: true, color: '#f0c49a', bright: 1.7, rough: 0.8, ns: 0.9 },
   garden: { normal: 'blanket', tile: 1.6, color: '#ffffff', rough: 0.95, ns: 0.6, vc: ['#2e5232', '#466f3c', '#5d8646'] },
   teatime: { map: 'tablecloth', tile: 6.5, color: '#fff4f0', rough: 0.85, ns: 0.8 },
   staircase: { map: 'marble', tile: 7, color: '#c7c1d8', rough: 0.28, ns: 0.6 },
@@ -562,8 +562,8 @@ export function createRiver(course, id, theme, opts = {}) {
   })();
   const mistCol = new THREE.Color(theme.fog).lerp(new THREE.Color('#ffffff'), 0.45);
   const mist = Array.from({ length: 12 }, (_, i) => {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, color: mistCol, transparent: true, opacity: id === 'cloudbank' ? 0.5 : 0.3, depthWrite: false, fog: true }));
-    sp.scale.set(22, 7, 1);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, color: mistCol, transparent: true, opacity: id === 'cloudbank' ? 0.4 : 0.15, depthWrite: false, fog: true }));
+    sp.scale.set(24, 5, 1);
     sp.layers.set(NO_MIRROR);
     sp.userData = { s: -999, d: 0, k: i };
     group.add(sp);
@@ -602,7 +602,7 @@ export function createRiver(course, id, theme, opts = {}) {
           u.d = (Math.random() < 0.5 ? -1 : 1) * (a.hw * (0.4 + Math.random() * 0.9));
         }
         const p = course.point(u.s, u.d + Math.sin(now * 0.1 + u.k) * 1.5);
-        m.position.set(p.x, 0.9 + (u.k % 3) * 0.4, p.z);
+        m.position.set(p.x, 0.6 + (u.k % 3) * 0.3, p.z);
       }
     },
     /** Pendulums at beat position B. */
