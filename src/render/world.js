@@ -441,7 +441,7 @@ export function createWorld(canvas, { poster = false } = {}) {
     const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
     composer = new EffectComposer(renderer, rt);
     composer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(width, height), 0.5, 0.55, 0.9);
+    bloom = new UnrealBloomPass(new THREE.Vector2(width, height), 0.5, 0.55, theme?.bloomT ?? 0.9);
     composer.addPass(bloom);
     grade = new GradePass();
     composer.addPass(grade);
@@ -534,6 +534,7 @@ export function createWorld(canvas, { poster = false } = {}) {
     }
     for (const l of pool) l.color.set(th.lantern);
     renderer.toneMappingExposure = th.exposure ?? (th.moon.sun ? 0.7 : 0.78);
+    if (bloom) bloom.threshold = th.bloomT ?? 0.9;
     scene.environmentIntensity = th.env ?? 0.5;
     applyGrade(th);
     makeEnvironment(th);

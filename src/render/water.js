@@ -78,16 +78,17 @@ void main() {
     if (abs(dist) > 4.0) continue;
     float w = (type > 1.5 ? 0.32 : type > 0.5 ? 0.62 : 0.5) * (1.0 + r.w * 1.2);
     float h = exp(-dist * dist / (w * w));
-    float reach = type > 1.5 ? exp(-lat * lat / 6.0) : latF;
+    // a caught swell lights up around the boat that caught it, never bank to bank
+    float reach = type > 1.5 ? exp(-lat * lat / 6.0) : kind > 0.5 ? exp(-lat * lat / 9.0) : latF;
     float amp = r.y * reach;
     // tilt the water along the current: a real crest for the mirror to bend
     g += fdir * (-2.0 * dist / (w * w)) * h * amp * (type > 0.5 && type < 1.5 ? 0.42 : 0.28) * (1.0 - r.w);
     float spark = pow(noise(vec2(lat * 6.0, dist * 4.0 + uTime * 3.0)), 5.0) * 2.5;
-    vec3 c = vec3(0.62, 0.7, 0.95) * (0.28 + spark * 0.5);
-    if (type > 0.5 && type < 1.5) c = vec3(1.0, 0.72, 0.28) * (0.75 + spark);
+    vec3 c = vec3(0.62, 0.7, 0.95) * (0.15 + spark * 0.3);
+    if (type > 0.5 && type < 1.5) c = vec3(1.0, 0.72, 0.28) * (0.5 + spark * 0.6);
     if (type > 1.5) c = vec3(0.85, 0.9, 1.0) * (0.35 + spark * 0.8) * step(0.45, fract(lat * 0.9 + 0.2));
-    if (kind > 0.5 && kind < 1.5) c = vec3(1.0, 0.93, 0.75) * (1.6 + spark);
-    else if (kind > 1.5 && kind < 2.5) c = vec3(1.0, 0.62, 0.22) * (1.1 + spark * 0.5);
+    if (kind > 0.5 && kind < 1.5) c = vec3(1.0, 0.8, 0.48) * (0.6 + spark * 0.5);
+    else if (kind > 1.5 && kind < 2.5) c = vec3(1.0, 0.62, 0.22) * (0.42 + spark * 0.3);
     else if (kind > 2.5) c = vec3(0.9, 0.28, 0.2) * 0.9 * step(0.5, fract(lat * 0.45 + 0.25)) * (1.0 - r.w);
     glowAdd += c * h * amp;
   }
@@ -106,9 +107,9 @@ void main() {
     float hh = exp(-band * band) * life;
     g += (dv / max(dd, 0.01)) * (-2.0 * band / 0.16) * hh * 0.035 * big;
     vec3 rc = vec3(0.0);
-    if (rg.w > 0.5 && rg.w < 1.5) rc = vec3(1.0, 0.9, 0.68) * 0.55;
+    if (rg.w > 0.5 && rg.w < 1.5) rc = vec3(1.0, 0.82, 0.55) * 0.32;
     else if (rg.w > 1.5 && rg.w < 2.5) rc = vec3(1.0, 0.62, 0.25) * 0.3;
-    else if (rg.w > 2.5 && rg.w < 3.5) rc = vec3(1.0, 0.76, 0.35) * 0.8;
+    else if (rg.w > 2.5 && rg.w < 3.5) rc = vec3(1.0, 0.72, 0.32) * 0.5;
     else if (rg.w > 3.5) rc = vec3(0.85, 0.75, 1.0) * 0.6;
     glowAdd += rc * hh * life * life;
   }
@@ -201,7 +202,7 @@ void main() {
   col *= 1.0 - smoothstep(vHW - 1.6, vHW + 0.2, ad) * 0.35;
   float lapLine = abs(ad - (vHW - 0.35 + 0.18 * sin(s * 0.7 + uTime * 1.1) + 0.12 * sin(s * 2.3 - uTime * 1.7)));
   float lap = exp(-lapLine * lapLine / 0.012) * (0.4 + 0.6 * noise(vec2(s * 2.0 - uTime * 0.6, d * 3.0)));
-  foam += lap * 0.4;
+  foam += lap * 0.22;
   // rapids: churned water, long foam streaks and white standing waves
   if (vRap > 0.01) {
     float n1 = noise(vec2(d * 2.6, (s - flow * 1.4) * 0.35));

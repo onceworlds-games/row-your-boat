@@ -91,6 +91,7 @@ async function boot() {
   const store = createStore();
   const loading = store.load();
   const scene = createScene(canvas);
+  if (q.has("debug")) window.__scene = scene;
   const game = createGame({ ow, scene, ui, store, flags: flagsOf() });
 
   const fit = () => {

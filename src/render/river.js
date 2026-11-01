@@ -4,79 +4,144 @@
 import * as THREE from 'three';
 import { G, createKit, glowTexture, srand } from './kit.js';
 import { NO_MIRROR } from './world.js';
+import { texture } from './tex.js';
+import { BANK_PROFILE, GARDEN_S, SWAY_TIME, bankHeight, islandHeight, createScatter } from './scatter.js';
 
 const tmp = new THREE.Object3D();
 const c3 = new THREE.Color();
 
-// ---------------------------------------------------------------- bank patterns
+// ---------------------------------------------------------------- the ground on each dream's banks
 
-function bankColor(id, theme, s, off, side, rnd) {
-  const B = theme.bank;
-  switch (id) {
-    case 'bedtime': {
-      if (s > 372) return (Math.floor(off / 1.4) + Math.floor(s / 5)) % 2 ? '#2f4d3b' : '#36573f';
-      const plank = Math.floor(off / 0.9);
-      const joint = (s + plank * 1.7) % 4.5 < 0.12;
-      return joint ? '#2c1f19' : B[plank % 3];
-    }
-    case 'teatime':
-      return (Math.floor(s / 2.4) + Math.floor(off / 2.4)) % 2 ? B[0] : B[1];
-    case 'staircase':
-      return (Math.floor(s / 4) + Math.floor(off / 4)) % 2 ? B[0] : B[1];
-    case 'cloudbank':
-      return rnd() < 0.5 ? B[0] : rnd() < 0.5 ? B[1] : B[2];
-    case 'library':
-      return off > 1.2 && off < 2.0 ? '#c99a4e' : (Math.floor(s / 3) + Math.floor(off / 3)) % 2 ? B[0] : B[1];
-    case 'clockwork': {
-      const tile = (Math.floor(s / 3.2) + Math.floor(off / 3.2)) % 2;
-      return (s % 3.2 < 0.15 || off % 3.2 < 0.15) ? '#3a2e1c' : B[tile];
-    }
-    case 'stars':
-      return rnd() < 0.02 ? '#cfd8ff' : B[(Math.floor(s / 6) + Math.floor(off / 6)) % 3];
-    case 'morning': {
-      const stitch = s % 3 < 0.12 || off % 3 < 0.12;
-      if (stitch) return '#f4ebd0';
-      return B[(Math.floor(s / 3) * 3 + Math.floor(off / 3) * 7 + (side > 0 ? 1 : 0)) % 4];
-    }
-    default:
-      return B[0];
-  }
-}
-
-const PROFILE = {
-  off: [-0.8, 0.25, 0.9, 2.2, 4.5, 8, 14, 22, 32],
-  y: [-0.6, 0.12, 0.42, 0.58, 0.66, 0.72, 0.85, 1.1, 1.6],
+// Each dream's ground: a photographed surface (or vertex colour), how big one tile is (m), its tint and finish.
+// swap: the texture's long axis runs along the river (floorboards).
+const GROUND = {
+  bedtime: { map: 'floor', tile: 3.2, swap: true, color: '#f0c49a', bright: 1.7, rough: 0.7, ns: 0.9 },
+  garden: { normal: 'blanket', tile: 1.6, color: '#ffffff', rough: 0.95, ns: 0.6, vc: ['#2e5232', '#466f3c', '#5d8646'] },
+  teatime: { map: 'tablecloth', tile: 6.5, color: '#fff4f0', rough: 0.85, ns: 0.8 },
+  staircase: { map: 'marble', tile: 7, color: '#c7c1d8', rough: 0.28, ns: 0.6 },
+  cloudbank: { normal: 'blanket', tile: 3.4, color: '#ffffff', rough: 0.95, ns: 1.2, vc: ['#eef0fb', '#d9def4', '#c3caea'] },
+  library: { map: 'carpet', tile: 3, color: '#ff9a8a', rough: 0.95, ns: 1.4 },
+  clockwork: { normal: 'plate', tile: 2.6, color: '#ffffff', rough: 0.62, metal: 0.3, ns: 1, env: 0.3, vc: ['#a8823a', '#b8913f', '#8f6e33'] },
+  stars: { normal: 'marble', tile: 6, color: '#ffffff', rough: 0.22, ns: 0.5, vc: ['#151b48', '#1d2560', '#10153a'] },
+  morning: { map: 'blanket', tile: 7, color: '#fff1e4', rough: 0.95, ns: 1 },
 };
 
-function bankAmp(id) {
-  return id === 'cloudbank' ? 1.6 : id === 'stars' ? 0.2 : id === 'bedtime' || id === 'library' || id === 'clockwork' ? 0.05 : 0.25;
+const mats = new Map();
+/** The bank lanterns' warm pools on the ground (baked per vertex in aGlow), pulsing with the beat. */
+const POOL = { value: new THREE.Color() };
+/** The ground material: the texture under vertex colour, glossy where the river wets it (aWet). */
+function groundMaterial(key) {
+  if (mats.has(key)) return mats.get(key);
+  const g = GROUND[key];
+  const nm = g.normal ?? g.map;
+  const mat = new THREE.MeshStandardMaterial({
+    color: g.color,
+    roughness: g.rough,
+    metalness: g.metal ?? 0,
+    vertexColors: true,
+    map: g.map ? texture(g.map, 0) : null,
+    normalMap: nm ? texture(nm, 1) : null,
+    normalScale: new THREE.Vector2(g.ns ?? 1, g.ns ?? 1),
+  });
+  if (g.bright) mat.color.multiplyScalar(g.bright);
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uPool = POOL;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float aWet;\nattribute float aGlow;\nvarying float vWet;\nvarying float vGlow;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWet = aWet;\nvGlow = aGlow;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uPool;\nvarying float vWet;\nvarying float vGlow;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.1, vWet);')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += uPool * vGlow * vGlow * (diffuseColor.rgb + 0.06);');
+  };
+  mat.customProgramCacheKey = () => 'wet-ground';
+  mat.userData.shared = true;
+  mats.set(key, mat);
+  return mat;
 }
 
-/** Both banks as one vertex-coloured mesh. */
-function buildBanks(course, id, theme) {
-  const rnd = srand(id.length * 97 + 5);
-  const STEP = 2;
-  const rows = Math.floor(course.total / STEP) + 1;
-  const K = PROFILE.off.length;
+/** Faces up: if the grid came out wound the other way round, turn every triangle over. */
+function faceUp(geo) {
+  geo.computeVertexNormals();
+  const n = geo.attributes.normal;
+  let sum = 0;
+  for (let i = 0; i < n.count; i++) sum += n.getY(i);
+  if (sum >= 0) return geo;
+  const ix = geo.index.array;
+  for (let i = 0; i < ix.length; i += 3) {
+    const t = ix[i + 1];
+    ix[i + 1] = ix[i + 2];
+    ix[i + 2] = t;
+  }
+  geo.index.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
+const smooth = (a, b, x) => {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+const vary = (s, off, side) => 0.5 + 0.5 * Math.sin(s * 0.13 + off * 0.41 + side) * Math.sin(s * 0.051 - off * 0.23 + 1.3);
+
+/** The colour at a point of the ground: the dream's own vertex colours (or grey), darkened where it is wet. */
+function groundColor(g, s, off, side, wet) {
+  const n = vary(s, off, side);
+  if (g.vc) {
+    const k = n * (g.vc.length - 1);
+    const i = Math.min(g.vc.length - 2, Math.floor(k));
+    c3.set(g.vc[i]).lerp(c4.set(g.vc[i + 1]), k - i);
+  } else c3.setScalar(0.86 + 0.18 * n);
+  c3.multiplyScalar(1 - 0.5 * wet);
+  return c3;
+}
+const c4 = new THREE.Color();
+
+/** How much lantern light falls on a point of the ground (s along, d across). */
+function poolAt(spots, s, d) {
+  let g = 0;
+  for (const l of spots) {
+    const ds = s - l.s;
+    if (ds > 7 || ds < -7) continue;
+    const dd = d - l.d;
+    g += Math.exp(-(ds * ds + dd * dd) / 9);
+  }
+  return Math.min(1, g);
+}
+
+/** One stretch of both banks, s0 to s1, in one ground. */
+function buildBanks(course, id, key, s0, s1, spots) {
+  const g = GROUND[key];
+  const STEP = 1.5;
+  const rows = Math.max(2, Math.ceil((s1 - s0) / STEP) + 1);
+  const OFF = BANK_PROFILE.off;
+  const K = OFF.length;
   const pos = [];
+  const uv = [];
   const colr = [];
+  const wet = [];
+  const glow = [];
   const idx = [];
-  const amp = bankAmp(id);
   let v = 0;
   for (const side of [-1, 1]) {
     const start = v;
     for (let r = 0; r < rows; r++) {
-      const s = Math.min(course.total, r * STEP);
+      const s = s0 + ((s1 - s0) * r) / (rows - 1);
       const a = course.at(s);
       for (let k = 0; k < K; k++) {
-        const off = Math.min(PROFILE.off[k], 34 - a.hw);
+        const off = Math.min(OFF[k], 34 - a.hw);
         const d = side * (a.hw + off);
         const p = course.point(s, d);
-        const bump = k >= 3 ? amp * (Math.sin(s * 0.21 + side * 1.7 + k) * 0.6 + Math.sin(s * 0.53 + k * 2.1) * 0.4) * Math.min(1, (k - 2) / 3) : 0;
-        pos.push(p.x, PROFILE.y[k] + bump + (id === 'cloudbank' && k >= 2 ? 0.6 : 0), p.z);
-        c3.set(bankColor(id, theme, s, Math.max(0, off), side, rnd));
-        if (k === 0) c3.multiplyScalar(0.55);
-        colr.push(c3.r, c3.g, c3.b);
+        pos.push(p.x, bankHeight(id, s, side, off), p.z);
+        const u = d / g.tile;
+        const w = s / g.tile;
+        if (g.swap) uv.push(w, u);
+        else uv.push(u, w);
+        const wt = 1 - smooth(-0.15, 0.35, off);
+        wet.push(wt);
+        glow.push(poolAt(spots, s, d));
+        const c = groundColor(g, s, off, side, wt);
+        colr.push(c.r, c.g, c.b);
         v++;
       }
     }
@@ -93,43 +158,46 @@ function buildBanks(course, id, theme) {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
+  geo.setAttribute('aWet', new THREE.Float32BufferAttribute(wet, 1));
+  geo.setAttribute('aGlow', new THREE.Float32BufferAttribute(glow, 1));
   geo.setIndex(idx);
-  geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 }));
+  faceUp(geo);
+  const mesh = new THREE.Mesh(geo, groundMaterial(key));
   mesh.receiveShadow = true;
   mesh.matrixAutoUpdate = false;
-  mesh.name = 'banks';
+  mesh.name = `banks-${key}`;
   return mesh;
 }
 
-const ISLAND_COL = {
-  bedtime: ['#e9dfc8', '#c9b9a0'], teatime: ['#f2ece0', '#d7cdbd'], staircase: ['#3e4466', '#2c3150'], cloudbank: ['#eef0fb', '#c9cfec'],
-  library: ['#efe4cc', '#c9b48e'], clockwork: ['#7d6740', '#5a4a30'], stars: ['#1c2456', '#2a3470'], morning: ['#e2b46a', '#c46e64'],
-};
-
-/** Islands: a mound in river coordinates (so it follows bends). */
+/** Islands: a mound in river coordinates (so it follows bends), in the dream's ground. */
 function islandMeshes(course, id) {
   const group = new THREE.Group();
-  const cols = ISLAND_COL[id] ?? ISLAND_COL.bedtime;
+  const key = id;
+  const g = GROUND[key];
   for (const is of course.islands) {
-    const K = 10;
-    const A = 28;
+    const K = 12;
+    const A = 32;
     const pos = [];
+    const uv = [];
     const colr = [];
+    const wet = [];
     const idx = [];
-    const H = id === 'cloudbank' ? 2.4 : id === 'stars' ? 0.6 : 1.3;
     for (let k = 0; k <= K; k++) {
-      const r = 1.08 - (k / K) * 1.08;
+      const r = 1.1 - (k / K) * 1.1;
       for (let j = 0; j < A; j++) {
         const th = (j / A) * Math.PI * 2;
         const s = is.sm + is.a * r * Math.cos(th);
         const d = is.b * r * Math.sin(th);
         const p = course.point(s, d);
-        const y = -0.35 + (H + 0.35) * Math.pow(Math.max(0, 1 - Math.min(1, r) ** 2), 0.55);
-        pos.push(p.x, y, p.z);
-        c3.set(k < 2 ? cols[1] : cols[0]);
-        colr.push(c3.r, c3.g, c3.b);
+        pos.push(p.x, islandHeight(id, r), p.z);
+        uv.push(g.swap ? s / g.tile : d / g.tile, g.swap ? d / g.tile : s / g.tile);
+        const off = (1 - r) * is.b;
+        const wt = 1 - smooth(-0.15, 0.35, off);
+        wet.push(wt);
+        const c = groundColor(g, s, off, 1, wt);
+        colr.push(c.r, c.g, c.b);
       }
     }
     for (let k = 0; k < K; k++) {
@@ -143,15 +211,81 @@ function islandMeshes(course, id) {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
+    geo.setAttribute('aWet', new THREE.Float32BufferAttribute(wet, 1));
+    geo.setAttribute('aGlow', new THREE.Float32BufferAttribute(new Float32Array(wet.length), 1));
     geo.setIndex(idx);
-    geo.computeVertexNormals();
-    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
+    faceUp(geo);
+    const m = new THREE.Mesh(geo, groundMaterial(key));
     m.receiveShadow = true;
     m.castShadow = true;
     group.add(m);
   }
   return group;
+}
+
+// ---------------------------------------------------------------- bank lanterns
+
+/** Where the bank lanterns stand: every 15 m, sides alternating, none beside an island. */
+function lanternSpots(course) {
+  const out = [];
+  for (let s = course.start - 10, k = 0; s < course.total - 4; s += 15, k++) {
+    if (course.islandAt(s)) continue;
+    out.push({ s, k, side: k % 2 ? 1 : -1 });
+  }
+  return out;
+}
+
+/** A paper lantern on its string: ribbed paper (bright), dark caps; one geometry with vertex colour. */
+function paperLantern() {
+  const pts = [];
+  const N = 14;
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    pts.push(new THREE.Vector2(0.09 + 0.2 * Math.pow(Math.sin(Math.PI * t), 0.75), (t - 0.5) * 0.6));
+  }
+  const paper = new THREE.LatheGeometry(pts, 24).toNonIndexed();
+  const P = paper.attributes.position;
+  const pc = [];
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i);
+    const z = P.getZ(i);
+    const y = P.getY(i);
+    const ang = Math.atan2(z, x);
+    const rib = Math.cos(ang * 12);
+    const f = 1 + 0.035 * rib;
+    P.setX(i, x * f);
+    P.setZ(i, z * f);
+    const ring = Math.abs(Math.sin(((y + 0.3) / 0.6) * Math.PI * 7));
+    const glow = (0.55 + 0.45 * Math.pow(Math.max(0, Math.sin(Math.PI * ((y + 0.3) / 0.6))), 0.6)) * (0.82 + 0.18 * ring) * (0.9 + 0.1 * rib);
+    pc.push(glow, glow * 0.97, glow * 0.92);
+  }
+  paper.setAttribute('color', new THREE.Float32BufferAttribute(pc, 3));
+  paper.computeVertexNormals();
+  const dark = (geo, y) => {
+    const gg = geo.toNonIndexed();
+    gg.translate(0, y, 0);
+    for (const n of Object.keys(gg.attributes)) if (n !== 'position' && n !== 'normal') gg.deleteAttribute(n);
+    gg.setAttribute('color', new THREE.Float32BufferAttribute(new Array(gg.attributes.position.count * 3).fill(0.05), 3));
+    return gg;
+  };
+  const parts = [paper, dark(new THREE.CylinderGeometry(0.1, 0.12, 0.06, 12), 0.31), dark(new THREE.CylinderGeometry(0.12, 0.1, 0.06, 12), -0.31), dark(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 4), 0.42)];
+  for (const p of parts) if (p.attributes.uv) p.deleteAttribute('uv');
+  let count = 0;
+  for (const p of parts) count += p.attributes.position.count;
+  const out = new THREE.BufferGeometry();
+  for (const [name, size] of [['position', 3], ['normal', 3], ['color', 3]]) {
+    const arr = new Float32Array(count * size);
+    let o = 0;
+    for (const p of parts) {
+      arr.set(p.attributes[name].array, o);
+      o += p.attributes[name].array.length;
+    }
+    out.setAttribute(name, new THREE.BufferAttribute(arr, size));
+  }
+  out.translate(0, -0.52, 0); // hangs from its top
+  return out;
 }
 
 // ---------------------------------------------------------------- things in the water
@@ -229,11 +363,25 @@ function logLook(id) {
  * Everything along a course. `lit(i)` etc. come back through `update`. Returns { group, lanterns (world positions),
  * update(t, beat, focus), arches: { start, finish }, dispose }.
  */
-export function createRiver(course, id, theme) {
+export function createRiver(course, id, theme, opts = {}) {
   const group = new THREE.Group();
   group.name = 'river';
-  group.add(buildBanks(course, id, theme));
+  // the banks see less of the sky than glaze does (or the floor turns to the sky's colour at a glance)
+  for (const key of [id, 'garden']) {
+    if (!GROUND[key]) continue;
+    const m = groundMaterial(key);
+    m.envMap = opts.env ?? null;
+    m.envMapIntensity = (theme.env ?? 0.5) * (GROUND[key].env ?? 0.5);
+  }
+  const spots = id === 'stars' ? [] : lanternSpots(course).map((l) => ({ s: l.s, d: l.side * (course.at(l.s).hw + 0.36) }));
+  if (id === 'bedtime') {
+    // the bedroom floor, then out through the window into the garden
+    group.add(buildBanks(course, id, 'bedtime', 0, GARDEN_S + 3, spots));
+    group.add(buildBanks(course, id, 'garden', GARDEN_S, course.total, spots));
+  } else group.add(buildBanks(course, id, id, 0, course.total, spots));
   group.add(islandMeshes(course, id));
+  const scatter = createScatter(course, id, opts.density ?? 1);
+  group.add(scatter);
   const rnd = srand(id.length * 13 + 1);
 
   // ---- rocks (instanced)
@@ -323,48 +471,71 @@ export function createRiver(course, id, theme) {
     return { p, swing, L };
   });
 
-  // ---- bank lanterns
+  // ---- bank lanterns: paper lanterns on shepherd's hooks leaning over the water (in the Sea of Stars they hang from
+  // the sky), swaying a little on their strings
   const lanterns = [];
-  const posts = createKit();
-  for (let s = course.start - 10, k = 0; s < course.total - 4; s += 15, k++) {
-    const side = k % 2 ? 1 : -1;
+  const posts = createKit({ roughness: 0.7 });
+  const wood = id === 'clockwork' ? '#3a3026' : id === 'staircase' ? '#2a2f48' : '#2e211b';
+  for (const { s, k, side } of lanternSpots(course)) {
     const a = course.at(s);
-    const d = side * (a.hw + 1.1);
-    const p = course.point(s, d);
-    if (course.islandAt(s) && Math.abs(d) < a.hw) continue;
+    const off = 1.0;
+    const p = course.point(s, side * (a.hw + off));
+    const y0 = bankHeight(id, s, side, off);
+    // toward the water, across the river
+    const inX = -Math.cos(a.h) * side;
+    const inZ = -Math.sin(a.h) * side;
     if (id === 'stars') {
-      // the dream turned over: lanterns hang from above
-      posts.add(G.cyl(0.02, 0.02, 4, 4), '#9aa3d8', { x: p.x, y: 5.6, z: p.z });
-      lanterns.push({ x: p.x, y: 3.4, z: p.z, s });
-    } else {
-      posts.add(G.cyl(0.07, 0.09, 2.1, 6), '#3a2a22', { x: p.x, y: 1.05, z: p.z });
-      posts.add(G.box(0.7, 0.07, 0.07), '#3a2a22', { x: p.x - Math.cos(a.h) * side * 0.3, y: 2.08, z: p.z - Math.sin(a.h) * side * 0.3, ry: -a.h });
-      const lx = p.x - Math.cos(a.h) * side * 0.6;
-      const lz = p.z - Math.sin(a.h) * side * 0.6;
-      lanterns.push({ x: lx, y: 1.72, z: lz, s });
+      const q = course.point(s, side * (a.hw - 0.4));
+      posts.add(G.cyl(0.012, 0.012, 5, 4), '#9aa3d8', { x: q.x, y: 6.4, z: q.z });
+      lanterns.push({ x: q.x, y: 3.9, z: q.z, s, hang: 3.9 + 0.52, ax: q.x, az: q.z, ph: k * 1.7 });
+      continue;
     }
+    const H = 2.3;
+    const R = 0.32;
+    const frame = new THREE.Matrix4().makeRotationY(Math.atan2(-inZ, inX)).setPosition(p.x, y0, p.z);
+    posts.add(G.cyl(0.055, 0.075, H, 7), wood, { y: H / 2 }, { parent: frame });
+    posts.add(G.cyl(0.11, 0.13, 0.16, 8), wood, { y: 0.08 }, { parent: frame });
+    // the hook: half a ring over the top
+    posts.add(new THREE.TorusGeometry(R, 0.04, 6, 14, Math.PI), wood, { x: R, y: H }, { parent: frame });
+    const hx = p.x + inX * 2 * R;
+    const hz = p.z + inZ * 2 * R;
+    lanterns.push({ x: hx, y: y0 + H - 0.52, z: hz, s, hang: y0 + H, ax: hx, az: hz, ph: k * 1.7 });
   }
   group.add(posts.build('posts'));
-  const lanternMat = new THREE.MeshStandardMaterial({ color: '#ffd8a0', emissive: theme.lantern, emissiveIntensity: 1.6, roughness: 0.6 });
-  const lanternGeo = G.sphere(0.32, 12, 8);
-  lanternGeo.scale(1, 1.25, 1);
-  const lanternMesh = new THREE.InstancedMesh(lanternGeo, lanternMat, lanterns.length);
-  lanterns.forEach((l, i) => {
-    tmp.position.set(l.x, l.y, l.z);
-    tmp.rotation.set(0, 0, 0);
-    tmp.scale.setScalar(1);
-    tmp.updateMatrix();
-    lanternMesh.setMatrixAt(i, tmp.matrix);
-  });
-  lanternMesh.instanceMatrix.needsUpdate = true;
-  lanternMesh.computeBoundingSphere();
+  const lanternCol = new THREE.Color(theme.lantern).lerp(new THREE.Color('#fff2d8'), 0.35);
+  const lanternMat = new THREE.MeshBasicMaterial({ vertexColors: true, color: lanternCol.clone().multiplyScalar(1.8), fog: true });
+  const lanternMesh = new THREE.InstancedMesh(paperLantern(), lanternMat, Math.max(1, lanterns.length));
+  lanternMesh.count = lanterns.length;
+  lanternMesh.frustumCulled = false;
   group.add(lanternMesh);
   // their halos
   const halo = new THREE.BufferGeometry();
-  halo.setAttribute('position', new THREE.Float32BufferAttribute(lanterns.flatMap((l) => [l.x, l.y, l.z]), 3));
-  const haloMat = new THREE.PointsMaterial({ map: glowTexture(), color: theme.lantern, size: 3.2, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+  const haloPos = new Float32Array(lanterns.length * 3);
+  halo.setAttribute('position', new THREE.BufferAttribute(haloPos, 3));
+  const haloMat = new THREE.PointsMaterial({ map: glowTexture(), color: theme.lantern, size: 3.2, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
   const halos = new THREE.Points(halo, haloMat);
+  halos.layers.set(NO_MIRROR);
+  halos.frustumCulled = false;
   group.add(halos);
+  const hangLanterns = (now) => {
+    lanterns.forEach((l, i) => {
+      const sx = Math.sin(now * 1.1 + l.ph) * 0.07 + Math.sin(now * 2.3 + l.ph * 1.3) * 0.02;
+      const sz = Math.sin(now * 0.8 + l.ph * 0.7) * 0.05;
+      tmp.position.set(l.ax, l.hang, l.az);
+      tmp.rotation.set(sz, l.ph, sx);
+      tmp.scale.setScalar(1);
+      tmp.updateMatrix();
+      lanternMesh.setMatrixAt(i, tmp.matrix);
+      l.x = l.ax + Math.sin(sx) * 0.52;
+      l.z = l.az - Math.sin(sz) * 0.52;
+      haloPos[i * 3] = l.x;
+      haloPos[i * 3 + 1] = l.y;
+      haloPos[i * 3 + 2] = l.z;
+    });
+    lanternMesh.instanceMatrix.needsUpdate = true;
+    halo.attributes.position.needsUpdate = true;
+  };
+  hangLanterns(0);
 
   // ---- arches
   const arches = { start: buildArch(course, course.start, 3, theme, 'start'), finish: buildArch(course, course.finish, 9, theme, 'finish') };
@@ -406,8 +577,11 @@ export function createRiver(course, id, theme) {
     arches,
     /** Per frame: t (song time), beat (0-1 phase), focusS (the camera's s), pulse (0-1 on the beat). */
     update(t, focusS, pulse, now) {
-      lanternMat.emissiveIntensity = 1.4 + pulse * 0.9;
+      lanternMat.color.copy(lanternCol).multiplyScalar(1.6 + pulse * 0.7);
+      POOL.value.copy(lanternCol).multiplyScalar(1.1 + pulse * 0.4);
       haloMat.size = 3.0 + pulse * 0.9;
+      hangLanterns(now);
+      SWAY_TIME.value = now;
       if (logMesh) {
         course.logs.forEach((l, i) => {
           const g = course.logAt(l, t);

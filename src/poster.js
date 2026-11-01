@@ -2,6 +2,7 @@
 // room, no HUD). body[data-ready] says when it is on screen, or 'error' with the reason in data-error.
 
 import { createScene } from './render/scene.js';
+import { texturesReady } from './render/tex.js';
 import { courseOf, songOf } from './race.js';
 import { streamByN, ROWER_NAMES } from './sim/streams.js';
 import { rowerLook, playerLook } from './looks.js';
@@ -30,7 +31,7 @@ export async function drawPoster(canvas, q) {
     if (name === 'cover') await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 3000))]);
     if (name.startsWith('badge-')) badge(canvas, name.slice(6), W, H);
     else {
-      const scene = stage(canvas, name, W, H);
+      const scene = await stage(canvas, name, W, H);
       // wait for the GPU to finish the frame (a software renderer can take seconds)
       const gl = scene.world.renderer.getContext();
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
@@ -63,7 +64,7 @@ const SHOTS = {
 
 const looks = [playerLook({ shirt: 7, skin: 1, pants: 14 }, 0, 'nightcap'), ...ROWER_NAMES.map(rowerLook)];
 
-function stage(canvas, name, W, H) {
+async function stage(canvas, name, W, H) {
   const shot = SHOTS[name] ?? SHOTS.cover;
   const stream = streamByN(shot.n);
   const course = courseOf(stream);
@@ -72,6 +73,7 @@ function stage(canvas, name, W, H) {
   scene.world.setQuality('high', 1);
   scene.resize(W, H, 1);
   scene.load(stream, course);
+  await texturesReady();
 
   const boats = [];
   const add = (s, d, o = {}) => {

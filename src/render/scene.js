@@ -41,7 +41,7 @@ export function createScene(canvas, { poster = false } = {}) {
     world.setTheme(theme, course);
     const water = createWater(course, theme);
     water.setMoon(world.moonDir);
-    const river = createRiver(course, stream.id, theme);
+    const river = createRiver(course, stream.id, theme, { density: world.quality === 'low' ? 0.45 : 1, env: world.scene.environment });
     const dream = createDream(course, stream.id, theme);
     scene.add(water.mesh, river.group, dream.group);
     const lights = [...river.lanterns, ...dream.lights.map((p) => ({ x: p.x, y: p.y, z: p.z, s: course.locate(p.x, p.z).s }))];

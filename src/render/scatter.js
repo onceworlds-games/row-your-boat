@@ -65,7 +65,6 @@ function blade(h, w, bend) {
   for (let i = 0; i < N; i++) {
     const a = i * 2;
     idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -144,9 +143,9 @@ const RECIPES = {
     ['marble', 0.07, [0.4, 6], [0.8, 1.3], ['#7fb3d5', '#F2A7B6', '#9CC5A1', '#FFB547', '#B7A5E8'], { gloss: true, to: 368 }],
     ['block', 0.025, [1.2, 9], [0.8, 1.6], ['#F2A7B6', '#9CC5A1', '#FFB547', '#B7A5E8', '#E5533D'], { to: 368 }],
     ['crayon', 0.03, [0.8, 8], [0.9, 1.2], ['#E5533D', '#5b87c5', '#9CC5A1', '#FFB547', '#8b68a8'], { to: 368, lie: true }],
-    ['grass', 1.6, [0.0, 9], [0.8, 1.5], ['#ffffff'], { from: 372 }],
-    ['reed', 0.35, [-0.3, 0.8], [0.8, 1.2], ['#ffffff'], { from: 372 }],
-    ['flower', 0.5, [0.8, 8], [0.8, 1.4], ['#F2A7B6', '#f4ebd0', '#B7A5E8', '#ffffff'], { from: 372 }],
+    ['grass', 1.6, [0.0, 9], [0.8, 1.5], ['#ffffff'], { two: true, from: 372 }],
+    ['reed', 0.35, [-0.3, 0.8], [0.8, 1.2], ['#ffffff'], { two: true, from: 372 }],
+    ['flower', 0.5, [0.8, 8], [0.8, 1.4], ['#F2A7B6', '#f4ebd0', '#B7A5E8', '#ffffff'], { two: true, from: 372 }],
     ['cap', 0.05, [1, 6], [0.9, 1.8], ['#9ff0ff', '#d9b8ff'], { from: 372, glow: true }],
   ],
   teatime: [
@@ -154,7 +153,7 @@ const RECIPES = {
     ['biscuit', 0.03, [1, 8], [0.9, 1.3], ['#ffffff'], { tilt: 0.25 }],
     ['berry', 0.025, [0.8, 7], [0.9, 1.3], ['#ffffff'], {}],
     ['pebble', 0.18, [0.3, 6], [0.3, 0.6], ['#e9c482', '#d9a85e'], {}],
-    ['flower', 0.06, [1, 7], [0.6, 0.9], ['#F2A7B6', '#ffffff'], { lie: true }],
+    ['flower', 0.06, [1, 7], [0.6, 0.9], ['#F2A7B6', '#ffffff'], { two: true, lie: true }],
   ],
   staircase: [
     ['candle', 0.035, [1.0, 2.2], [1.6, 2.4], ['#ffffff'], { flame: true }],
@@ -181,9 +180,9 @@ const RECIPES = {
     ['pebble', 0.25, [0.1, 5], [0.5, 1.4], ['#2a3060', '#3a3f7a'], {}],
   ],
   morning: [
-    ['grass', 1.4, [0.0, 10], [0.8, 1.5], ['#ffffff'], {}],
-    ['reed', 0.25, [-0.3, 0.8], [0.8, 1.2], ['#ffffff'], {}],
-    ['flower', 0.55, [0.6, 9], [0.8, 1.4], ['#F2A7B6', '#ffffff', '#FFB547', '#B7A5E8'], {}],
+    ['grass', 1.4, [0.0, 10], [0.8, 1.5], ['#ffffff'], { two: true }],
+    ['reed', 0.25, [-0.3, 0.8], [0.8, 1.2], ['#ffffff'], { two: true }],
+    ['flower', 0.55, [0.6, 9], [0.8, 1.4], ['#F2A7B6', '#ffffff', '#FFB547', '#B7A5E8'], { two: true }],
     ['mushroom', 0.05, [1, 6], [0.9, 1.6], ['#ffffff'], {}],
     ['cap', 0.05, [1, 6], [0.9, 1.6], ['#E5533D', '#f4ebd0'], {}],
     ['pebble', 0.15, [0.0, 2], [0.5, 1.2], ['#b8a898', '#8a7a6a'], {}],
@@ -198,7 +197,7 @@ function material(o) {
   if (o.glow) mat = new THREE.MeshBasicMaterial({ vertexColors: true });
   else if (o.metal) mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.85 });
   else if (o.gloss) mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.1 });
-  else mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 });
+  else mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, side: o.two ? THREE.DoubleSide : THREE.FrontSide });
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uSwayTime = SWAY_TIME;
     sh.vertexShader = sh.vertexShader
@@ -216,7 +215,7 @@ function material(o) {
   transformed.z += cos(uSwayTime * 1.2 + ph * 1.3) * sw * 0.05;`,
       );
   };
-  mat.customProgramCacheKey = () => `sway-${o.glow ? 'g' : o.metal ? 'm' : o.gloss ? 's' : 'd'}`;
+  mat.customProgramCacheKey = () => `sway-${o.glow ? 'g' : o.metal ? 'm' : o.gloss ? 's' : o.two ? 't' : 'd'}`;
   return mat;
 }
 
@@ -230,7 +229,7 @@ export function createScatter(course, id, density = 1) {
   const R = srand(id.length * 31 + 7);
   const mats = new Map();
   const matOf = (o) => {
-    const k = o.glow ? 'g' : o.metal ? 'm' : o.gloss ? 's' : 'd';
+    const k = o.glow ? 'g' : o.metal ? 'm' : o.gloss ? 's' : o.two ? 't' : 'd';
     if (!mats.has(k)) mats.set(k, material(o));
     return mats.get(k);
   };
@@ -251,7 +250,22 @@ export function createScatter(course, id, density = 1) {
         if (off0 < 0 && course.islandAt?.(s)) continue;
         const p = course.point(s, d);
         const k = Math.min(chunks - 1, Math.floor(s / CHUNK));
-        per[k].push({ x: p.x, z: p.z, y: bankY(off0), s: sc[0] + R() * (sc[1] - sc[0]), r: R() * Math.PI * 2, c: colors[Math.floor(R() * colors.length)], tilt: (R() - 0.5) * (o.tilt ?? 0) });
+        per[k].push({ x: p.x, z: p.z, y: bankHeight(id, s, side, off0) - 0.02, s: sc[0] + R() * (sc[1] - sc[0]), r: R() * Math.PI * 2, c: colors[Math.floor(R() * colors.length)], tilt: (R() - 0.5) * (o.tilt ?? 0) });
+      }
+    }
+    // the islands get the same, thinner
+    if (!o.from && !o.noIsland) {
+      for (const is of course.islands ?? []) {
+        const m = Math.floor(is.a * is.b * 2 * dens * density * 0.6);
+        for (let i = 0; i < m; i++) {
+          const th = R() * Math.PI * 2;
+          const r = Math.sqrt(R()) * 0.92;
+          const s = is.sm + is.a * r * Math.cos(th);
+          if (s < from || s > to) continue;
+          const p = course.point(s, is.b * r * Math.sin(th));
+          const k = Math.min(chunks - 1, Math.floor(s / CHUNK));
+          per[k].push({ x: p.x, z: p.z, y: islandHeight(id, r) - 0.02, s: sc[0] + R() * (sc[1] - sc[0]), r: R() * Math.PI * 2, c: colors[Math.floor(R() * colors.length)], tilt: (R() - 0.5) * (o.tilt ?? 0) });
+        }
       }
     }
     for (const list of per) {
@@ -300,6 +314,28 @@ export function bankY(off) {
     }
   }
   return P.y[P.y.length - 1];
+}
+
+/** Where the bedroom's floor ends and the garden starts (Bedtime). */
+export const GARDEN_S = 372;
+
+const smooth = (a, b, x) => {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+/** The ground's height on a bank: the profile, gentle swells away from the water (big soft ones in the clouds). */
+export function bankHeight(id, s, side, off) {
+  const amp = id === 'cloudbank' ? 1.5 : id === 'stars' ? 0.25 : id === 'morning' ? 0.45 : id === 'teatime' ? 0.18 : id === 'bedtime' && s > GARDEN_S ? 0.4 : 0.04;
+  const w = smooth(0.6, 5, off);
+  const bump = amp * w * (Math.sin(s * 0.21 + side * 1.7 + off * 0.31) * 0.6 + Math.sin(s * 0.53 + off * 0.67 + side) * 0.4);
+  return bankY(off) + bump + (id === 'cloudbank' ? 0.55 * smooth(-0.2, 1.2, off) : 0);
+}
+
+/** An island's height at r (0 the middle, 1 its edge). */
+export function islandHeight(id, r) {
+  const H = id === 'cloudbank' ? 2.4 : id === 'stars' ? 0.6 : 1.3;
+  return -0.35 + (H + 0.35) * Math.pow(Math.max(0, 1 - Math.min(1, r) ** 2), 0.55);
 }
 
 /** The bank's cross-section: offsets from the water's edge (m) and heights. */

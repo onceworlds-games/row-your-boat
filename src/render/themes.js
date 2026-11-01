@@ -51,7 +51,7 @@ export const THEMES = {
     hemi: ['#3a48a0', '#05061a', 0.65], lantern: '#FFB547', stars: 1.6,
   },
   morning: {
-    skyTop: '#2b3a80', skyMid: '#8a7aa8', skyBot: '#f4b48a', fog: '#b08aa0', fogD: 0.0085,
+    skyTop: '#2b3a80', skyMid: '#8a7aa8', skyBot: '#f4b48a', fog: '#a07a98', fogD: 0.0062, exposure: 0.56, bloomT: 1.25, sat: 1.12,
     deep: '#1f2f6e', water: '#4a62a8', foam: '#fff4e6',
     bank: ['#c46e64', '#e2b46a', '#8fb39a', '#7f8cc4'], far: '#6a5070',
     moon: { dir: [0.0, 0.12, -1], color: '#ffcf9e', intensity: 2.1, size: 110, sun: true },
