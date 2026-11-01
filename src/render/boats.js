@@ -27,26 +27,102 @@ const BLADE_READY = Math.asin((0.1 - OARLOCK.y) / OUT);
 
 // ---------------------------------------------------------------- the hull
 
+// The rowboat's lines (the oars, the yoke and the rower are placed by these).
 const halfWidth = (u) => (u < 0.45 ? 0.4 + 0.34 * Math.sin((u / 0.45) * (Math.PI / 2)) : 0.74 * Math.sqrt(Math.max(0, 1 - ((u - 0.45) / 0.55) ** 2)));
 const depthAt = (u) => (u > 0.6 ? 0.5 * (1 - ((u - 0.6) / 0.4) ** 2 * 0.62) : 0.5 - (0.45 - Math.min(0.45, u)) * 0.22);
 const sheerAt = (u) => SHEER + 0.2 * u ** 3 + 0.05 * (1 - u) ** 4;
 const zAt = (u) => L * (0.5 - u);
-const uAt = (z) => 0.5 - z / L;
+
+// Every body's lines: half width, depth and sheer along u (0 stern, 1 bow), its length, the planks' lap (0: smooth),
+// how full its section is (smaller: boxier), and where the lantern post stands.
+const ends = (u) => Math.abs(2 * u - 1);
+const PROFILES = {
+  rowboat: { len: L, halfWidth, depthAt, sheerAt, lap: 0.016, sec: 0.78, strakes: 6, bowZ: zAt(0.9) },
+  canoe: {
+    len: 3.7,
+    halfWidth: (u) => 0.7 * Math.pow(Math.max(0, Math.sin(Math.PI * u)), 0.62),
+    depthAt: (u) => 0.4 * (1 - ends(u) ** 5) + 0.02,
+    sheerAt: (u) => SHEER - 0.04 + 0.36 * ends(u) ** 3.2,
+    lap: 0,
+    sec: 0.62,
+    strakes: 6,
+    bowZ: -1.32,
+  },
+  paper: {
+    len: 3.5,
+    halfWidth: (u) => 0.72 * Math.min(1, Math.min(u, 1 - u) / 0.24) ** 0.85 + 0.02,
+    depthAt: () => 0.36,
+    sheerAt: (u) => SHEER + 0.05 + 0.62 * Math.max(0, ends(u) - 0.55) / 0.45,
+    lap: 0,
+    sec: 0.25,
+    strakes: 2,
+    facets: true,
+    bowZ: -1.2,
+  },
+  swan: {
+    len: 3.3,
+    halfWidth: (u) => 0.76 * Math.pow(Math.max(0, 1 - ((u - 0.46) / 0.56) ** 2), 0.55),
+    depthAt: (u) => 0.48 - 0.12 * ends(u) ** 2,
+    sheerAt: (u) => SHEER + 0.04 + 0.18 * Math.max(0, u - 0.6) ** 2 + 0.22 * (Math.max(0, 0.22 - u) / 0.22) ** 2,
+    lap: 0,
+    sec: 0.9,
+    strakes: 6,
+    bowZ: -1.2,
+  },
+  teacup: {
+    len: 2.15,
+    halfWidth: (u) => 1.04 * Math.sqrt(Math.max(0, 1 - ends(u) ** 2)),
+    depthAt: (u) => 0.5 * Math.sqrt(Math.max(0, 1 - ends(u) ** 2)) + 0.06,
+    sheerAt: () => SHEER - 0.05,
+    lap: 0,
+    sec: 1.25,
+    strakes: 6,
+    bowZ: -0.86,
+  },
+  walnut: {
+    len: 3.1,
+    halfWidth: (u) => 0.82 * Math.pow(Math.max(0, 1 - ends(u) ** 2.2), 0.5),
+    depthAt: (u) => 0.52 * Math.pow(Math.max(0, 1 - ends(u) ** 2.6), 0.45) + 0.04,
+    sheerAt: (u) => SHEER - 0.02 + 0.05 * ends(u) ** 2,
+    lap: 0,
+    sec: 1.1,
+    strakes: 16,
+    U: 72,
+    bowZ: -1.2,
+  },
+  tub: {
+    len: 3.2,
+    halfWidth: (u) => 0.7 * Math.pow(Math.max(0, 1 - ends(u) ** 4), 0.28),
+    depthAt: (u) => 0.5 * Math.pow(Math.max(0, 1 - ends(u) ** 5), 0.3) + 0.04,
+    sheerAt: (u) => SHEER + 0.04 + 0.1 * Math.max(0, 0.3 - u) / 0.3,
+    lap: 0,
+    sec: 0.3,
+    strakes: 6,
+    bowZ: -1.25,
+  },
+};
+/** The lines the hull functions use while a body is built. */
+let PROF = PROFILES.rowboat;
+const pz = (u) => PROF.len * (0.5 - u);
+const pu = (z) => 0.5 - z / PROF.len;
+
+/** Where a body's lantern post stands (z), and how glossy its hull is. */
+export const BOW_Z = Object.fromEntries(Object.entries(PROFILES).map(([k, v]) => [k, v.bowZ]));
+const ROUGH = { rowboat: 0.42, canoe: 0.36, paper: 0.92, swan: 0.5, teacup: 0.16, walnut: 0.78, tub: 0.2 };
 
 /** A point of the hull's outer surface: u along (0 stern, 1 bow), k round (0 keel, 1 gunwale), on side s. */
 function hullPoint(u, k, s, inset = 0) {
-  const w = Math.max(0.012, halfWidth(u)) - inset;
-  const dp = depthAt(u) - inset * 0.8;
+  const w = Math.max(0.012, PROF.halfWidth(u)) - inset;
+  const dp = PROF.depthAt(u) - inset * 0.8;
   const phi = k * (Math.PI / 2);
-  return [s * w * Math.sin(phi), sheerAt(u) - dp * Math.pow(Math.cos(phi), 0.78), zAt(u)];
+  return [s * w * Math.sin(phi), PROF.sheerAt(u) - dp * Math.pow(Math.cos(phi), PROF.sec), pz(u)];
 }
 
-const STRAKES = 6;
-const LAP = 0.016;
-
 /** The planked shell: each strake overlaps the one below it (a step out at every plank's lower edge). */
-function shell(colorOf, inner = false) {
-  const U = 30;
+function shell(colorOf, inner = false, bump = null) {
+  const U = PROF.facets ? 12 : PROF.U ?? 30;
+  const STRAKES = PROF.strakes;
+  const LAP = PROF.lap;
   const pos = [];
   const colr = [];
   const idx = [];
@@ -54,7 +130,11 @@ function shell(colorOf, inner = false) {
   const rows = [];
   // the rows round the section: per strake a lower edge (out by LAP), a middle and an upper edge (flush)
   for (let j = 0; j < STRAKES; j++) {
-    for (const t of inner ? [0, 1] : [0, 0.5, 1]) rows.push({ k: (j + t) / STRAKES, lap: inner ? 0 : LAP * (1 - t), j });
+    const ts = inner || !LAP ? [0, 1] : [0, 0.5, 1];
+    for (const t of ts) {
+      if (t === 0 && j > 0 && !LAP) continue;
+      rows.push({ k: (j + t) / STRAKES, lap: inner ? 0 : LAP * (1 - t), j });
+    }
   }
   const K = rows.length;
   for (const s of [-1, 1]) {
@@ -70,8 +150,9 @@ function shell(colorOf, inner = false) {
         const nl = Math.hypot(nx, ny) || 1;
         nx = (nx / nl) * s;
         ny /= nl;
-        pos.push(p[0] + nx * r.lap * s * s, p[1] + ny * r.lap, p[2]);
-        c.set(colorOf(r.j, u, r.k));
+        const out = r.lap + (bump && !inner ? bump(u, r.k, s) : 0);
+        pos.push(p[0] + nx * out * s * s, p[1] + ny * out, p[2]);
+        c.set(colorOf(r.j, u, r.k, s));
         colr.push(c.r, c.g, c.b);
       }
     }
@@ -91,6 +172,11 @@ function shell(colorOf, inner = false) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
   g.setIndex(idx);
+  if (PROF.facets) {
+    const f = g.toNonIndexed();
+    f.computeVertexNormals();
+    return f;
+  }
   g.computeVertexNormals();
   return g;
 }
@@ -126,6 +212,59 @@ function rib(u, color) {
   return out;
 }
 
+/** A tube along the gunwale (k = 1) of both sides, from u0 to u1, lifted by `lift`. */
+function rails(color, r = 0.028, lift = 0.012, out = 1.01, u0 = 0, u1 = 1) {
+  const parts = [];
+  for (const s of [-1, 1]) {
+    const pts = [];
+    for (let i = 0; i <= 28; i++) {
+      const u = u0 + ((u1 - u0) * i) / 28;
+      const p = hullPoint(u, 1, s);
+      pts.push(new THREE.Vector3(p[0] * out, p[1] + lift, p[2]));
+    }
+    parts.push(colored(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, r, 8), color));
+  }
+  return parts;
+}
+
+/** A whole closed rim round a round body (teacup, tub, walnut). */
+function rim(color, r, lift = 0, out = 1) {
+  const pts = [];
+  for (let i = 0; i <= 64; i++) {
+    const a = (i / 64) * Math.PI * 2;
+    const u = 0.5 + 0.5 * Math.cos(a);
+    const s = Math.sin(a) >= 0 ? 1 : -1;
+    const p = hullPoint(u, 1, s);
+    pts.push(new THREE.Vector3(p[0] * out, p[1] + lift, p[2]));
+  }
+  return colored(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 96, r, 8, true), color);
+}
+
+/** Seats, floorboards and brass oarlocks, fitted to the body's own width. */
+function fittings(kit, seatColor = '#b07a4e', { bow = true, stern = true, floor = true, locks = true, lockColor = '#d9a441' } = {}) {
+  const seatW = (z) => Math.max(0.3, PROF.halfWidth(pu(z)) * 2 - 0.09);
+  if (floor) {
+    const floorY = PROF.sheerAt(0.45) - PROF.depthAt(0.45) + 0.075;
+    for (const x of [-0.16, 0, 0.16]) kit.add(G.box(0.12, 0.025, Math.min(2.2, PROF.len * 0.6)), WOOD, { x, y: floorY, z: 0.05 });
+  }
+  kit.add(G.rbox(seatW(HIPS.z), 0.05, 0.3, 0.02), seatColor, { y: SEAT_Y, z: HIPS.z });
+  if (stern) kit.add(G.rbox(seatW(Math.min(1.25, PROF.len / 2 - 0.45)), 0.05, 0.34, 0.02), seatColor, { y: SEAT_Y + 0.04, z: Math.min(1.25, PROF.len / 2 - 0.45) });
+  if (bow) kit.add(G.rbox(seatW(Math.max(-1.05, -PROF.len / 2 + 0.55)), 0.05, 0.26, 0.02), seatColor, { y: SEAT_Y + 0.06, z: Math.max(-1.05, -PROF.len / 2 + 0.55) });
+  if (!locks) return;
+  for (const s of [-1, 1]) {
+    // a block from the gunwale out (or in) to the oarlock
+    const w = PROF.halfWidth(pu(OARLOCK.z));
+    const reach = Math.abs(OARLOCK.x - w) + 0.12;
+    kit.add(G.box(reach, 0.04, 0.16), WOOD, { x: s * (w + OARLOCK.x) / 2, y: Math.max(SHEER + 0.03, PROF.sheerAt(pu(OARLOCK.z)) + 0.02), z: OARLOCK.z });
+    kit.add(G.torus(0.04, 0.009, 10, 6, Math.PI), lockColor, { x: s * OARLOCK.x, y: OARLOCK.y + 0.005, z: OARLOCK.z, ry: Math.PI / 2 });
+  }
+}
+
+const shade = (hex, k) => new THREE.Color(hex).multiplyScalar(k).getStyle();
+const mixc = (a, b, k) => new THREE.Color(a).lerp(new THREE.Color(b), k).getStyle();
+/** A small, stable noise for bumpy shells (walnut). */
+const wob = (a, b) => Math.sin(a * 12.9898 + b * 78.233) * 0.5 + Math.sin(a * 4.1 + b * 9.7) * 0.3 + Math.sin(a * 23.3 - b * 17.1) * 0.2;
+
 function mergeAll(list) {
   const ready = list.map((g) => {
     const n = g.index ? g.toNonIndexed() : g;
@@ -159,66 +298,236 @@ const hullCache = new Map();
 function hullGeometry(body, paint, trim) {
   const key = `${body}|${paint}|${trim}`;
   if (hullCache.has(key)) return hullCache.get(key);
-  const tc = TRIM_COLORS[trim] ?? (paint.toUpperCase() === '#F4EBD0' ? '#2B3F7C' : '#F4EBD0');
-  const stripes = trim === 'stripes';
-  const pc = new THREE.Color(paint);
-  const dark = pc.clone().multiplyScalar(0.8).getStyle();
-  const outer = shell((j, u) => {
-    if (j <= 1) return BOTTOM;
-    if (j === STRAKES - 1) return stripes ? (Math.floor(u * 22) % 2 ? '#E5533D' : '#F4EBD0') : tc;
-    if (j === 2) return dark;
-    return paint;
-  });
-  const inner = shell((j) => (j <= 1 ? WOOD_DARK : WOOD_IN), true);
-  const kit = createKit();
-  const parts = [outer, inner];
-  // ribs, floorboards, thwarts
-  for (let u = 0.1; u < 0.9; u += 0.095) parts.push(rib(u, '#6a4229'));
-  const floorY = sheerAt(0.4) - depthAt(0.4) + 0.075;
-  for (const x of [-0.16, 0, 0.16]) kit.add(G.box(0.12, 0.025, 2.2), WOOD, { x, y: floorY, z: 0.05 });
-  const seatW = (z) => halfWidth(uAt(z)) * 2 - 0.09;
-  kit.add(G.rbox(seatW(HIPS.z), 0.05, 0.3, 0.02), '#b07a4e', { y: SEAT_Y, z: HIPS.z });
-  kit.add(G.rbox(seatW(1.25), 0.05, 0.36, 0.02), '#b07a4e', { y: sheerAt(0.13) - 0.14, z: 1.25 });
-  kit.add(G.rbox(seatW(-1.05), 0.05, 0.26, 0.02), '#b07a4e', { y: sheerAt(0.81) - 0.12, z: -1.05 });
-  // the transom, with a band of the trim along its top
-  const tw = halfWidth(0);
-  const outline = [];
-  for (let i = 0; i <= 10; i++) {
-    const p = hullPoint(0, i / 10, 1);
-    outline.push([p[0], p[1]]);
+  const build = BODY_BUILD[body] ?? BODY_BUILD.rowboat;
+  PROF = PROFILES[body] ?? PROFILES.rowboat;
+  let geo;
+  try {
+    const tc = TRIM_COLORS[trim] ?? (paint.toUpperCase() === '#F4EBD0' ? '#2B3F7C' : '#F4EBD0');
+    geo = mergeAll(build(paint, trim, tc));
+  } finally {
+    PROF = PROFILES.rowboat;
   }
-  for (let i = 10; i >= 1; i--) {
-    const p = hullPoint(0, i / 10, -1);
-    outline.push([p[0], p[1]]);
-  }
-  kit.add(G.slab(outline, 0.035), WOOD_DARK, { z: L / 2 - 0.005 });
-  kit.add(G.box(tw * 2 + 0.02, 0.08, 0.05), tc, { y: sheerAt(0) - 0.045, z: L / 2 + 0.005 });
-  // gunwale rails and the stem
-  for (const s of [-1, 1]) {
-    const pts = [];
-    for (let i = 0; i <= 24; i++) {
-      const p = hullPoint(i / 24, 1, s);
-      pts.push(new THREE.Vector3(p[0] * 1.01, p[1] + 0.012, p[2]));
-    }
-    parts.push(colored(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.028, 6), WOOD));
-  }
-  const stem = [];
-  for (let i = 0; i <= 8; i++) {
-    const k = i / 8;
-    const p = hullPoint(1, 0, 1);
-    stem.push(new THREE.Vector3(0, sheerAt(1) - depthAt(1) * (1 - k) + k * 0.1, p[2] - 0.02 + Math.sin(k * 1.5) * 0.04));
-  }
-  parts.push(colored(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(stem), 12, 0.035, 6), WOOD));
-  // brass oarlocks
-  for (const s of [-1, 1]) {
-    kit.add(G.box(0.12, 0.04, 0.16), WOOD, { x: s * OARLOCK.x * 0.98, y: SHEER + 0.03, z: OARLOCK.z });
-    kit.add(G.torus(0.04, 0.009, 10, 6, Math.PI), '#d9a441', { x: s * OARLOCK.x, y: OARLOCK.y + 0.005, z: OARLOCK.z, ry: Math.PI / 2 });
-  }
-  parts.push(kit.build().userData.solid.geometry);
-  const geo = mergeAll(parts);
   hullCache.set(key, geo);
   return geo;
 }
+
+const BODY_BUILD = {
+  rowboat(paint, trim, tc) {
+    const stripes = trim === 'stripes';
+    const dark = shade(paint, 0.8);
+    const outer = shell((j, u) => {
+      if (j <= 1) return BOTTOM;
+      if (j === PROF.strakes - 1) return stripes ? (Math.floor(u * 22) % 2 ? '#E5533D' : '#F4EBD0') : tc;
+      if (j === 2) return dark;
+      return paint;
+    });
+    const inner = shell((j) => (j <= 1 ? WOOD_DARK : WOOD_IN), true);
+    const kit = createKit();
+    const parts = [outer, inner];
+    for (let u = 0.1; u < 0.9; u += 0.095) parts.push(rib(u, '#6a4229'));
+    fittings(kit);
+    // the transom, with a band of the trim along its top
+    const tw = PROF.halfWidth(0);
+    const outline = [];
+    for (let i = 0; i <= 10; i++) {
+      const p = hullPoint(0, i / 10, 1);
+      outline.push([p[0], p[1]]);
+    }
+    for (let i = 10; i >= 1; i--) {
+      const p = hullPoint(0, i / 10, -1);
+      outline.push([p[0], p[1]]);
+    }
+    kit.add(G.slab(outline, 0.035), WOOD_DARK, { z: PROF.len / 2 - 0.005 });
+    kit.add(G.box(tw * 2 + 0.02, 0.08, 0.05), tc, { y: PROF.sheerAt(0) - 0.045, z: PROF.len / 2 + 0.005 });
+    parts.push(...rails(WOOD));
+    const stem = [];
+    for (let i = 0; i <= 8; i++) {
+      const k = i / 8;
+      const p = hullPoint(1, 0, 1);
+      stem.push(new THREE.Vector3(0, PROF.sheerAt(1) - PROF.depthAt(1) * (1 - k) + k * 0.1, p[2] - 0.02 + Math.sin(k * 1.5) * 0.04));
+    }
+    parts.push(colored(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(stem), 12, 0.035, 6), WOOD));
+    parts.push(kit.build().userData.solid.geometry);
+    return parts;
+  },
+
+  canoe(paint, trim, tc) {
+    // smooth cedar-strip sides painted, a trim stripe under the gunwale, painted points at both ends
+    const stripes = trim === 'stripes';
+    const outer = shell((j, u, k) => {
+      if (k < 0.22) return shade(paint, 0.62);
+      if (k > 0.8 && k < 0.9) return stripes ? (Math.floor(u * 26) % 2 ? '#E5533D' : '#F4EBD0') : tc;
+      if (ends(u) > 0.84 && k > 0.35) return tc;
+      return paint;
+    });
+    const inner = shell((j, u) => (Math.floor(u * 40) % 2 ? '#b98a58' : '#a87a4a'), true);
+    const kit = createKit();
+    const parts = [outer, inner];
+    for (let u = 0.12; u < 0.9; u += 0.08) parts.push(rib(u, '#8a5f38'));
+    fittings(kit, '#c49a6c', { bow: false, stern: false, floor: false });
+    // thwarts across, and the little end decks
+    for (const z of [0.95, -0.85]) kit.add(G.box(PROF.halfWidth(pu(z)) * 2, 0.035, 0.08), WOOD, { y: PROF.sheerAt(pu(z)) - 0.04, z });
+    for (const u of [0.03, 0.97]) {
+      const z = pz(u < 0.5 ? 0.06 : 0.94);
+      kit.add(G.cone(0.12, 0.34, 3), tc, { y: PROF.sheerAt(u < 0.5 ? 0.06 : 0.94) - 0.02, z, rx: Math.PI / 2 * (u < 0.5 ? -1 : 1), sz: 0.25 });
+    }
+    parts.push(...rails(WOOD_DARK, 0.026));
+    parts.push(kit.build().userData.solid.geometry);
+    return parts;
+  },
+
+  paper(paint, trim, tc) {
+    // folded from a page of an exercise book: ruled lines, a margin, the fold peaks at either end
+    const ink = trim === 'cream' ? '#8fb6e8' : tc;
+    const page = '#f3efe4';
+    const lined = (u, k, s) => {
+      const p = hullPoint(u, k, s);
+      const y = p[1];
+      if (Math.abs(p[2] - 0.9) < 0.03) return '#e58a8a';
+      return Math.abs(((y * 1000) % 90) - 45) < 6 ? ink : page;
+    };
+    const outer = shell((j, u, k, s) => lined(u, k, s));
+    const inner = shell(() => '#e9e3d4', true);
+    const kit = createKit();
+    const parts = [outer, inner];
+    fittings(kit, '#d9cdb4', { floor: false, bow: false });
+    // the folds: a crease line along each side, and a paint-coloured doodle on the bow
+    parts.push(...rails('#d6cdb8', 0.012, 0.005));
+    kit.add(G.sphere(0.1, 10, 8), paint, { x: 0.5, y: 0.62, z: -1.1, sz: 0.3, ry: 0.4 });
+    kit.add(G.sphere(0.1, 10, 8), paint, { x: -0.5, y: 0.62, z: -1.1, sz: 0.3, ry: -0.4 });
+    parts.push(kit.build().userData.solid.geometry);
+    return parts;
+  },
+
+  swan(paint, trim, tc) {
+    const white = '#f6f2ea';
+    const outer = shell((j, u, k) => {
+      if (k < 0.18) return '#c9c2b6';
+      if (k > 0.9) return tc;
+      return mixc(white, '#e9e2d6', ends(u) * 0.4);
+    });
+    const inner = shell((j) => (j <= 1 ? '#5a3a26' : '#d9cbb0'), true);
+    const kit = createKit();
+    const parts = [outer, inner];
+    fittings(kit, '#c49a6c', { bow: false });
+    parts.push(...rails('#e8dfcf', 0.03));
+    // wings folded against the sides, their tips raised at the stern, three paint-dipped flight feathers each
+    for (const s of [-1, 1]) {
+      const zc = 0.72;
+      const w = PROF.halfWidth(pu(zc));
+      const y = PROF.sheerAt(pu(zc)) - 0.02;
+      kit.add(G.sphere(1, 20, 12), white, { x: s * (w + 0.015), y, z: zc, sx: 0.05, sy: 0.16, sz: 0.56, rx: -0.22 });
+      for (let f = 0; f < 3; f++) {
+        const z = 1.08 + f * 0.1;
+        kit.add(G.sphere(1, 12, 8), f === 2 ? paint : '#ffffff', { x: s * (PROF.halfWidth(pu(z)) + 0.03), y: y + 0.13 + f * 0.035, z, sx: 0.035, sy: 0.05, sz: 0.2, rx: -0.5 - f * 0.12 });
+      }
+    }
+    // the neck: an S up from the bow, thick at the base; the head, an orange beak with its black knob, the eyes
+    const bz = pz(1);
+    const lower = [new THREE.Vector3(0, 0.42, bz + 0.3), new THREE.Vector3(0, 0.75, bz + 0.04), new THREE.Vector3(0, 1.1, bz - 0.08)];
+    const upper = [new THREE.Vector3(0, 1.06, bz - 0.08), new THREE.Vector3(0, 1.45, bz + 0.02), new THREE.Vector3(0, 1.78, bz - 0.04), new THREE.Vector3(0, 1.94, bz - 0.16)];
+    parts.push(colored(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(lower), 16, 0.12, 12), white));
+    parts.push(colored(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(upper), 16, 0.085, 12), white));
+    kit.add(G.sphere(0.14, 16, 12), white, { y: 1.97, z: bz - 0.2, sz: 1.3 });
+    kit.add(G.cone(0.065, 0.26, 12), '#f08a2a', { y: 1.93, z: bz - 0.45, rx: -Math.PI / 2 - 0.3 });
+    kit.add(G.sphere(0.058, 10, 8), '#1a1418', { y: 1.99, z: bz - 0.34 });
+    for (const s of [-1, 1]) kit.add(G.sphere(0.026, 8, 6), '#1a1418', { x: s * 0.12, y: 2.01, z: bz - 0.24 });
+    // a ribbon of the paint round the neck
+    kit.add(G.torus(0.11, 0.026, 18, 6), paint, { y: 1.02, z: bz - 0.06, rx: Math.PI / 2 + 0.25 });
+    parts.push(kit.build().userData.solid.geometry);
+    return parts;
+  },
+
+  teacup(paint, trim, tc) {
+    // glazed porcelain: the paint outside with a gilt band, white inside, a handle at the stern, on a saucer
+    const gilt = trim === 'cream' ? '#d9a441' : tc;
+    const outer = shell((j, u, k, s) => {
+      if (k > 0.86) return '#fbf8f2';
+      if (k > 0.8) return gilt;
+      if (k < 0.12) return '#fbf8f2';
+      // little painted flowers: dots in a ring
+      const a = Math.atan2(s * PROF.halfWidth(u), pz(u));
+      if (k > 0.45 && k < 0.6 && Math.abs(((a * 8) / Math.PI) % 2) < 0.22) return '#fbf8f2';
+      return paint;
+    });
+    const inner = shell((j, u, k) => (k < 0.2 ? '#efe6d6' : '#fbf8f2'), true);
+    const kit = createKit();
+    const parts = [outer, inner];
+    parts.push(rim(gilt, 0.03, 0.005));
+    fittings(kit, '#c49a6c', { bow: false, stern: false, floor: false });
+    // the handle, out over the stern
+    kit.add(G.torus(0.22, 0.05, 20, 10, Math.PI * 1.25), paint, { y: 0.28, z: PROF.len / 2 + 0.12, rx: 0, ry: Math.PI / 2, rz: -Math.PI * 0.62 });
+    // the saucer under it, at the water
+    const saucer = G.lathe([[0.0, -0.06], [0.7, -0.05], [1.32, 0.0], [1.45, 0.06], [1.48, 0.08]], 40);
+    kit.add(saucer, '#fbf8f2', {});
+    kit.add(G.torus(1.43, 0.02, 48, 6), gilt, { y: 0.07, rx: Math.PI / 2 });
+    parts.push(kit.build().userData.solid.geometry);
+    return parts;
+  },
+
+  walnut(paint, trim, tc) {
+    // half a walnut shell: deep wrinkles outside and in, a pale cut rim, the seam along the keel
+    const wr = (u, k, s) => wob(u * 11 + s * 3.1, k * 7.3) + 0.5 * wob(u * 23 - s, k * 15);
+    const bump = (u, k, s) => 0.07 * wr(u, k, s) * Math.sin(Math.min(1, k * 1.05) * Math.PI);
+    const outer = shell((j, u, k, s) => mixc('#4a2a14', '#a8744a', Math.max(0, Math.min(1, 0.55 + wr(u, k, s) * 0.45))), false, bump);
+    const inner = shell((j, u, k, s) => mixc('#5a361e', '#c99a64', Math.max(0, Math.min(1, 0.45 + wr(u * 1.3, k + 0.3, -s) * 0.55)) * (0.5 + k * 0.5)), true);
+    const kit = createKit();
+    const parts = [outer, inner];
+    parts.push(rim('#e0c08f', 0.05, 0.0));
+    // the seam: a ridge along the keel, and the inner partition's stub across the middle
+    const seam = [];
+    for (let i = 0; i <= 20; i++) {
+      const p = hullPoint(i / 20, 0, 1);
+      seam.push(new THREE.Vector3(0, p[1] - 0.02, p[2]));
+    }
+    parts.push(colored(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(seam), 30, 0.05, 6), '#3e2412'));
+    // inside: the two hollows of the kernel's halves, parted by a ridge down the middle
+    const ridge = [];
+    for (let i = 0; i <= 16; i++) {
+      const u = 0.08 + (i / 16) * 0.84;
+      const p = hullPoint(u, 0, 1, 0.04);
+      ridge.push(new THREE.Vector3(0, p[1] + 0.06 + 0.04 * Math.sin(u * Math.PI), p[2]));
+    }
+    parts.push(colored(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ridge), 24, 0.06, 8), '#8a5a34'));
+    fittings(kit, '#c99a64', { bow: false, floor: false });
+    // a ribbon of the paint tied round the post
+    kit.add(G.torus(0.06, 0.02, 14, 6), paint, { y: 0.9, z: BOW_Z.walnut, rx: Math.PI / 2 });
+    parts.push(kit.build().userData.solid.geometry);
+    return parts;
+  },
+
+  tub(paint, trim, tc) {
+    // a clawfoot bath: painted outside, white enamel in, a rolled rim, brass taps at the stern, feet below
+    const outer = shell((j, u, k) => (k > 0.9 ? '#f4f4f0' : paint));
+    const inner = shell((j, u, k) => (k < 0.15 ? '#e6e6e0' : '#f6f6f2'), true);
+    const kit = createKit();
+    const parts = [outer, inner];
+    parts.push(rim('#f6f6f2', 0.045, 0.01, 1.02));
+    const brass = trim === 'cream' ? '#d9a441' : tc;
+    fittings(kit, '#c49a6c', { bow: false, floor: false, lockColor: brass });
+    // taps and a spout at the stern end
+    const sz = PROF.len / 2 - 0.08;
+    const sy = PROF.sheerAt(0.02);
+    kit.add(G.cyl(0.03, 0.03, 0.22, 10), brass, { y: sy + 0.1, z: sz });
+    kit.add(G.cyl(0.026, 0.026, 0.2, 10), brass, { y: sy + 0.2, z: sz - 0.09, rx: Math.PI / 2 });
+    for (const s of [-1, 1]) {
+      kit.add(G.cyl(0.025, 0.025, 0.12, 8), brass, { x: s * 0.18, y: sy + 0.06, z: sz });
+      kit.add(G.cyl(0.06, 0.06, 0.03, 4), '#f6f6f2', { x: s * 0.18, y: sy + 0.13, z: sz, ry: Math.PI / 4 });
+    }
+    // the feet: brass claws at the four corners, down in the water
+    for (const [u, s] of [[0.12, -1], [0.12, 1], [0.88, -1], [0.88, 1]]) {
+      const p = hullPoint(u, 0.35, s);
+      kit.add(G.sphere(0.08, 10, 8), brass, { x: p[0] * 0.9, y: p[1] - 0.14, z: p[2] });
+      kit.add(G.cone(0.06, 0.14, 8), brass, { x: p[0] * 0.95, y: p[1] - 0.06, z: p[2], rx: Math.PI });
+    }
+    // a rubber duck on the rim at the bow
+    kit.add(G.sphere(0.09, 12, 10), '#ffd23f', { y: PROF.sheerAt(0.95) + 0.1, z: pz(0.95) + 0.05, sz: 1.2 });
+    kit.add(G.sphere(0.06, 12, 10), '#ffd23f', { y: PROF.sheerAt(0.95) + 0.22, z: pz(0.95) - 0.04 });
+    kit.add(G.cone(0.03, 0.07, 8), '#f08a2a', { y: PROF.sheerAt(0.95) + 0.21, z: pz(0.95) - 0.12, rx: -Math.PI / 2 });
+    parts.push(kit.build().userData.solid.geometry);
+    return parts;
+  },
+};
 
 const YOKE_Y = 1.5;
 
@@ -228,7 +537,7 @@ function yokeGeometry() {
   if (yokeGeo) return yokeGeo;
   const kit = createKit();
   const postZ = zAt(0.9);
-  const postY = sheerAt(0.9);
+  const postY = 0.3;
   const top = YOKE_Y + 0.2;
   kit.add(G.cyl(0.028, 0.038, top - postY, 8), WOOD_DARK, { y: (top + postY) / 2, z: postZ });
   const parts = [];
@@ -390,9 +699,14 @@ export function createBoatMesh(look, { ghost = false } = {}) {
   hull.castShadow = !ghost;
   hull.receiveShadow = !ghost;
   tilt.add(hull);
+  // the yoke, the lanterns and the pennant stand together at the body's bow
+  const bow = new THREE.Group();
+  bow.position.z = (BOW_Z[lk.body] ?? BOW_Z.rowboat) - BOW_Z.rowboat;
+  tilt.add(bow);
+  hullMat.roughness = ROUGH[lk.body] ?? 0.42;
   const yoke = new THREE.Mesh(yokeGeometry(), hullMat);
   yoke.castShadow = !ghost;
-  tilt.add(yoke);
+  bow.add(yoke);
   const api = { group, tilt, ghost, look: lk, level: 1, lanterns: [], showBoat: () => {} };
   if (ghost) {
     api.update = (dt, now) => {
@@ -449,7 +763,7 @@ export function createBoatMesh(look, { ghost = false } = {}) {
     glow.scale.setScalar(0.9);
     body.add(glow);
     hang.add(body);
-    tilt.add(hang);
+    bow.add(hang);
     api.lanterns.push({ hang, body, mesh: paper, glow, pop: 0, snuff: 0, a: 0, v: 0, lit: false });
   });
   // the pennant on top of the post
@@ -460,7 +774,7 @@ export function createBoatMesh(look, { ghost = false } = {}) {
   penPivot.position.set(0, YOKE_Y + 0.2, postZ);
   pen.rotation.y = Math.PI / 2;
   penPivot.add(pen);
-  tilt.add(penPivot);
+  bow.add(penPivot);
 
   const handL = new THREE.Vector3();
   const handR = new THREE.Vector3();
@@ -529,6 +843,10 @@ export function createBoatMesh(look, { ghost = false } = {}) {
     Object.assign(lk, next);
     if (['shirt', 'skin', 'pants', 'hat', 'hatColor', 'hair', 'hairColor'].some((k) => before[k] !== lk[k])) rower.setLook(lk);
     if (['body', 'paint', 'trim'].some((k) => before[k] !== lk[k])) hull.geometry = hullGeometry(lk.body, lk.paint, lk.trim);
+    if (before.body !== lk.body) {
+      bow.position.z = (BOW_Z[lk.body] ?? BOW_Z.rowboat) - BOW_Z.rowboat;
+      hullMat.roughness = ROUGH[lk.body] ?? 0.42;
+    }
     if (before.paint !== lk.paint) for (const o of oars) o.mesh.geometry = oarGeometry(lk.paint, o.side);
     if (before.paint !== lk.paint || before.symbol !== lk.symbol) {
       pen.material.map = pennantTexture(lk.paint, lk.symbol);

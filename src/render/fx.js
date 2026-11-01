@@ -214,8 +214,20 @@ export function createFx(scene) {
     drip(x, y, z) {
       for (let i = 0; i < 5 * scale; i++) spray.emit({ x: x + (R() - 0.5) * 0.25, y: Math.max(0.15, y) + R() * 0.1, z: z + (R() - 0.5) * 0.25, vx: (R() - 0.5) * 0.3, vy: -0.2 - R() * 0.5, vz: (R() - 0.5) * 0.3, life: 0.6, size: 0.06 + R() * 0.05, color: '#e8eeff', a: 0.8, grav: 8 });
     },
-    /** Spray at the bow at speed, and silver sparkle in a slipstream. */
-    wake(x, z, fx, fz, v, slip) {
+    /** Spray at the bow at speed, silver sparkle in a slipstream, and the boat's own wake trail (a cosmetic). */
+    wake(x, z, fx, fz, v, slip, trail = null) {
+      if (trail && trail !== 'none' && v > 0.6 && R() < Math.min(1, 0.25 + v * 0.1) * scale) {
+        const sx = x - fx * 1.9 + (R() - 0.5) * 0.9;
+        const sz = z - fz * 1.9 + (R() - 0.5) * 0.9;
+        if (trail === 'stars') glow.emit({ x: sx, y: 0.15 + R() * 0.3, z: sz, vx: (R() - 0.5) * 0.4, vy: 0.3 + R() * 0.4, vz: (R() - 0.5) * 0.4, life: 0.9 + R() * 0.5, size: 0.18 + R() * 0.2, color: R() < 0.5 ? '#fff6d8' : '#ffd27a', a: 1, drag: 1.5 });
+        else if (trail === 'petals') spray.emit({ x: sx, y: 0.06, z: sz, vx: (R() - 0.5) * 0.5, vy: 0.05, vz: (R() - 0.5) * 0.5, life: 2.2, size: 0.12 + R() * 0.06, color: R() < 0.6 ? '#f7a8c0' : '#fde3ec', a: 0.95, drag: 1.2 });
+        else if (trail === 'bubbles') spray.emit({ x: sx, y: 0.05, z: sz, vx: (R() - 0.5) * 0.3, vy: 0.25 + R() * 0.3, vz: (R() - 0.5) * 0.3, life: 1.1, size: 0.08 + R() * 0.1, color: '#e6f4ff', a: 0.55, drag: 1, grow: 0.8 });
+        else if (trail === 'fireflies') glow.emit({ x: sx, y: 0.3 + R() * 0.6, z: sz, vx: (R() - 0.5) * 0.8, vy: 0.2 + R() * 0.3, vz: (R() - 0.5) * 0.8, life: 1.6 + R(), size: 0.22, color: '#e8ff9a', a: 1, drag: 0.8 });
+        else if (trail === 'notes') {
+          const c = ['#ffd27a', '#f2a7b6', '#b7a5e8', '#9cc5a1'][Math.floor(R() * 4)];
+          glow.emit({ x: sx, y: 0.3, z: sz, vx: (R() - 0.5) * 0.3, vy: 0.9 + R() * 0.4, vz: (R() - 0.5) * 0.3, life: 1.1, size: 0.3, color: c, a: 1, grav: 1.2, drag: 0.5 });
+        }
+      }
       if (v > 3 && R() < (v - 3) * 0.15 * scale) {
         const side = R() < 0.5 ? -1 : 1;
         spray.emit({ x: x + fx * 1.4 + fz * side * 0.3, y: 0.1, z: z + fz * 1.4 - fx * side * 0.3, vx: -fz * side * 1.2 + fx * 0.5, vy: 0.8 + R() * 0.6, vz: fx * side * 1.2 + fz * 0.5, life: 0.5, size: 0.1 + R() * 0.08, color: '#eef2ff', a: 0.7, grav: 7 });

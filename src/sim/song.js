@@ -41,7 +41,7 @@ export const BEAT_NOTES = Array.from({ length: VERSE }, (_, vb) =>
  * `row` counts rowed beats before it (rests excluded), `vb` is its beat in the verse (0-15, -1 in a breath), `breath`
  * how many breaths came before it.
  */
-export function makeSong(bpm, { seconds = 600 } = {}) {
+export function makeSong(bpm, { seconds = 600, golden = false } = {}) {
   const base = 60 / Math.max(30, Math.min(240, bpm));
   const beats = [];
   let t = 0;
@@ -52,7 +52,7 @@ export function makeSong(bpm, { seconds = 600 } = {}) {
     const dur = base / (1 + TEMPO_STEP * Math.min(TEMPO_STEPS, breaths));
     if (inRow < ROW_BEATS) {
       const vb = row % VERSE;
-      beats.push({ i: beats.length, t, dur, rest: false, row, vb, breath: breaths, gold: GOLD_VB.includes(vb), rush: RUSH_VB.includes(vb) });
+      beats.push({ i: beats.length, t, dur, rest: false, row, vb, breath: breaths, gold: GOLD_VB.includes(vb) || (golden && !RUSH_VB.includes(vb)), rush: RUSH_VB.includes(vb) });
       row++;
       inRow++;
     } else {

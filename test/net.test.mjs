@@ -160,8 +160,9 @@ test('values from other pages are checked', () => {
   assert.deepEqual(bad, prev, 'every bad value keeps the last good one');
   assert.equal(cleanBoat(null, prev), prev);
   assert.equal(cleanBoat({ s: 600 }, null, 500).s, 0, 'past the end of the course');
-  assert.deepEqual(cleanExtras({ nb: 'yes', hat: '<img>', r: 'x'.repeat(200) }), { nb: 0, hat: 'nightcap', r: '' });
-  assert.deepEqual(cleanExtras({ nb: 1, hat: 'beret', r: 'm1.2' }), { nb: 1, hat: 'beret', r: 'm1.2' });
+  const plain = { nb: 0, hat: 'nightcap', body: 'rowboat', lantern: 'amber', wake: 'none', trim: 'cream', lv: 1, r: '' };
+  assert.deepEqual(cleanExtras({ nb: 'yes', hat: '<img>', body: 'yacht', lantern: 'red', wake: 1, trim: null, lv: 99, r: 'x'.repeat(200) }), plain);
+  assert.deepEqual(cleanExtras({ nb: 1, hat: 'beret', body: 'swan', lantern: 'rose', wake: 'stars', trim: 'gold', lv: 12, r: 'm1.2' }), { nb: 1, hat: 'beret', body: 'swan', lantern: 'rose', wake: 'stars', trim: 'gold', lv: 12, r: 'm1.2' });
   assert.equal(cleanRound({ n: 99, t0: 0 }), null);
   assert.equal(cleanRound({ n: 2, t0: 'soon' }), null);
   const r = cleanRound({ n: 2, t0: 5, slots: { a: 0, b: 'x', c: 40 }, fin: { a: 12.5, b: -1, c: 'x' }, bs: { x: 0.3, y: 5 }, nb: 1 });

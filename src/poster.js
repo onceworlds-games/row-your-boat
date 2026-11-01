@@ -210,6 +210,9 @@ const BADGES = {
   'merrily-rush': { bg: '#FFC94D', ring: INK, draw: droplets },
   bouquet: { bg: '#2f6b4a', ring: CREAM, draw: lily },
   'close-shave': { bg: '#5c6a94', ring: CREAM, draw: shave },
+  'level-10': { bg: '#E09A2C', ring: INK, draw: ten },
+  'three-wishes': { bg: '#232a5c', ring: AMBER, draw: wishes },
+  'full-moon': { bg: '#141A3A', ring: CREAM, draw: fullMoon },
 };
 
 function badge(canvas, id, W, H) {
@@ -558,4 +561,75 @@ function shave(g, r) {
   star(g, r * 0.22, -r * 0.02, r * 0.13);
   g.fill();
   g.stroke();
+}
+
+function ten(g, r) {
+  // a brass level disc with the number, and an oar across behind it
+  g.save();
+  g.rotate(-0.7);
+  g.fillStyle = '#c49a6c';
+  g.strokeStyle = INK;
+  g.lineWidth = r * 0.05;
+  g.beginPath();
+  g.roundRect(-r * 0.9, -r * 0.06, r * 1.8, r * 0.12, r * 0.05);
+  g.fill();
+  g.stroke();
+  g.restore();
+  g.fillStyle = '#ffd27a';
+  g.lineWidth = r * 0.07;
+  circle(g, 0, 0, r * 0.52);
+  g.fill();
+  g.stroke();
+  g.fillStyle = INK;
+  g.font = `900 ${Math.round(r * 0.62)}px Fraunces, Georgia, serif`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('10', 0, r * 0.04);
+}
+
+function wishes(g, r) {
+  // three wishing stars falling into the water
+  g.strokeStyle = CREAM;
+  g.lineWidth = r * 0.07;
+  g.beginPath();
+  g.moveTo(-r * 0.8, r * 0.55);
+  g.bezierCurveTo(-r * 0.4, r * 0.4, r * 0.4, r * 0.7, r * 0.8, r * 0.55);
+  g.stroke();
+  g.strokeStyle = INK;
+  g.lineWidth = r * 0.04;
+  for (const [x, y, s, c] of [[-0.42, -0.1, 0.24, AMBER], [0.05, -0.48, 0.3, CREAM], [0.48, -0.02, 0.22, AMBER]]) {
+    g.save();
+    g.strokeStyle = 'rgba(244,235,208,0.6)';
+    g.lineWidth = r * 0.05;
+    g.beginPath();
+    g.moveTo(x * r - s * r * 0.4, y * r - s * r * 1.6);
+    g.lineTo(x * r, y * r);
+    g.stroke();
+    g.restore();
+    g.fillStyle = c;
+    star(g, x * r, y * r, s * r);
+    g.fill();
+    g.stroke();
+  }
+}
+
+function fullMoon(g, r) {
+  g.fillStyle = CREAM;
+  g.strokeStyle = INK;
+  g.lineWidth = r * 0.05;
+  circle(g, 0, -r * 0.05, r * 0.55);
+  g.fill();
+  g.stroke();
+  g.fillStyle = 'rgba(20,26,58,0.15)';
+  for (const [x, y, s] of [[-0.2, -0.2, 0.12], [0.18, 0.05, 0.09], [-0.05, 0.22, 0.07]]) {
+    circle(g, x * r, y * r, s * r);
+    g.fill();
+  }
+  // seven little phases round the rim
+  for (let i = 0; i < 7; i++) {
+    const a = Math.PI * (0.15 + (i / 6) * 0.7);
+    g.fillStyle = i === 6 ? AMBER : CREAM;
+    circle(g, Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78 + r * 0.02, r * 0.07);
+    g.fill();
+  }
 }

@@ -395,7 +395,7 @@ button:focus-visible {
   top: calc(12px + var(--safe-top));
   right: 14px;
   display: flex;
-  gap: 12px;
+  gap: 30px;
 }
 
 .disc {
@@ -434,7 +434,7 @@ button:focus-visible {
   position: absolute;
   top: 100%;
   margin-top: 6px;
-  font: 700 14px var(--sans);
+  font: 700 16px var(--sans);
   white-space: nowrap;
   color: var(--cream);
   text-shadow: 0 2px 0 var(--ink);
@@ -1235,6 +1235,530 @@ button:focus-visible {
   pointer-events: auto;
 }
 
+/* ---------------------------------------------------------------- the rower's plaque, wallet, level */
+
+.plaque {
+  position: absolute;
+  left: 14px;
+  top: calc(70px + var(--safe-top));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px 8px 8px;
+  transform: rotate(-0.8deg);
+}
+
+.lv {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #ffd27a, #e09a2c 70%);
+  border: 3px solid #3a2418;
+  box-shadow: inset 0 -3px 0 rgba(90, 50, 10, 0.35), 0 3px 0 #2d1c13;
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.lv.pop {
+  animation: lanpop 0.5s ease-out;
+}
+
+.plaque .mid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 110px;
+}
+
+.plaque .cap {
+  font: 800 17px/1 var(--display);
+  font-variation-settings: 'SOFT' 100;
+}
+
+.xpbar {
+  position: relative;
+  display: block;
+  height: 10px;
+  border-radius: 6px;
+  background: #2d1c13;
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.xpbar .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #ffd27a, #ffb547);
+}
+
+.wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 800 20px/1 var(--display);
+  font-variation-settings: 'SOFT' 100;
+  font-variant-numeric: tabular-nums;
+  color: #e8efff;
+}
+
+.wallet .ic svg,
+.btn .ic svg,
+.item .st .ic svg,
+.tfacts .ic svg,
+.ledger .blm .ic svg {
+  display: block;
+  width: 26px;
+  height: 20px;
+}
+
+.disc.small {
+  width: 52px;
+  height: 52px;
+}
+
+.disc.small svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* ---------------------------------------------------------------- the Boathouse */
+
+.shop {
+  position: absolute;
+  right: 14px;
+  top: calc(70px + var(--safe-top));
+  bottom: calc(14px + var(--safe-bottom));
+  width: min(400px, calc(100vw - 28px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+  padding: 12px 14px 14px;
+}
+
+.shophead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shophead h2 {
+  flex: 1;
+  margin: 0;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tab {
+  flex: none;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: rgba(20, 26, 58, 0.35);
+  color: var(--cream);
+  font: 800 17px/1 var(--display);
+  font-variation-settings: 'SOFT' 100;
+}
+
+.tab.on {
+  background: var(--cream);
+  color: var(--ink);
+  box-shadow: 0 3px 0 #b9ab86;
+}
+
+.items {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-content: start;
+  padding: 2px;
+}
+
+.item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 72px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(20, 26, 58, 0.4);
+  border: 3px solid transparent;
+  color: var(--cream);
+  text-align: left;
+}
+
+.item.own {
+  background: rgba(244, 235, 208, 0.16);
+}
+
+.item.on {
+  border-color: var(--amber);
+  background: rgba(255, 181, 71, 0.18);
+}
+
+.item .nm {
+  font: 800 18px/1.1 var(--display);
+  font-variation-settings: 'SOFT' 100;
+}
+
+.item .st {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 700 16px/1 var(--sans);
+  color: #e8efff;
+  min-height: 20px;
+}
+
+.item .st .ok svg {
+  width: 22px;
+  height: 22px;
+}
+
+.item .sw {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #3a2418;
+  box-shadow: 0 0 10px rgba(255, 220, 160, 0.35);
+}
+
+.btn .ic {
+  margin-right: 6px;
+}
+
+.btn[aria-disabled='true'] {
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------- Tonight's Dream */
+
+.modal {
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.modal .corner {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+.modal h3 {
+  margin: 14px 0 6px;
+  font: 900 21px/1 var(--display);
+  font-variation-settings: 'SOFT' 100;
+  text-align: left;
+}
+
+.modal .sub {
+  font: 700 17px var(--sans);
+  color: var(--amber);
+  margin-top: -2px;
+}
+
+.tcard {
+  border-radius: 12px;
+  background: rgba(20, 26, 58, 0.45);
+  padding: 12px 14px 14px;
+  text-align: left;
+}
+
+.tname {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tname .st {
+  font: 900 26px/1.05 var(--display);
+  font-variation-settings: 'SOFT' 100;
+}
+
+.tname .tw {
+  font: 800 19px/1 var(--display);
+  font-variation-settings: 'SOFT' 100;
+  color: var(--amber);
+}
+
+.tline {
+  font: 600 16px var(--sans);
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+.tfacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 10px;
+  font: 700 16px var(--sans);
+}
+
+.tfacts .mine {
+  color: var(--amber);
+}
+
+.tfacts .all {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tboard {
+  margin-top: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.trow {
+  display: flex;
+  gap: 10px;
+  font: 600 16px var(--sans);
+}
+
+.trow .pl {
+  width: 1.2em;
+  color: var(--amber);
+  font-weight: 800;
+}
+
+.trow .nm {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trow .tm {
+  font-variant-numeric: tabular-nums;
+}
+
+.tcard .plank {
+  justify-content: flex-start;
+}
+
+.wishes {
+  display: grid;
+  gap: 8px;
+}
+
+.wish {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 4px 10px;
+  text-align: left;
+}
+
+.wish .ck svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.wish .lab {
+  font: 700 17px var(--sans);
+}
+
+.wish .n {
+  font: 800 17px var(--display);
+  font-variant-numeric: tabular-nums;
+  color: var(--amber);
+}
+
+.wish .bar {
+  grid-column: 2 / 4;
+  height: 6px;
+  border-radius: 4px;
+  background: #2d1c13;
+  overflow: hidden;
+}
+
+.wish .fill {
+  display: block;
+  height: 100%;
+  background: var(--amber);
+}
+
+.wish.done .lab {
+  opacity: 0.75;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.wish.done .bar {
+  display: none;
+}
+
+.mooncal {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.mooncal .mn svg {
+  display: block;
+  width: 42px;
+  height: 42px;
+}
+
+.mooncal .mn:not(.on) {
+  opacity: 0.55;
+}
+
+.mooncal .mn.now svg {
+  filter: drop-shadow(0 0 8px rgba(255, 210, 122, 0.9));
+}
+
+/* ---------------------------------------------------------------- the ledger: what a race paid */
+
+.ledger {
+  margin-top: 12px;
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  background: rgba(20, 26, 58, 0.5);
+  text-align: left;
+}
+
+.ledger.float {
+  position: absolute;
+  left: 14px;
+  top: calc(70px + var(--safe-top));
+  width: min(300px, calc(100vw - 28px));
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #7a5540, #6b4a38 55%, #5c3f30);
+  border: 3px solid #3a2418;
+  box-shadow: 0 6px 0 #2d1c13, 0 14px 30px rgba(5, 8, 25, 0.55);
+  animation: ledgerin 0.45s cubic-bezier(.2,.9,.3,1.2);
+  transition: opacity 0.5s, transform 0.5s;
+}
+
+.ledger.float.out {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+@keyframes ledgerin {
+  0% {
+    opacity: 0;
+    transform: translateX(-40px) rotate(-3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lrow .xpbar {
+  flex: 1;
+  height: 12px;
+}
+
+.lrow .plus {
+  font-size: 24px;
+  color: var(--amber);
+}
+
+.ledger .lv {
+  width: 42px;
+  height: 42px;
+  font-size: 21px;
+}
+
+.ledger .parts {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0;
+}
+
+.ledger .part {
+  display: flex;
+  justify-content: space-between;
+  font: 600 16px var(--sans);
+  opacity: 0.92;
+}
+
+.ledger .part .x {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger .part.wish {
+  color: var(--amber);
+}
+
+.ledger .foot {
+  justify-content: space-between;
+}
+
+.ledger .blm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 800 20px var(--display);
+  color: #e8efff;
+}
+
+.ledger .night {
+  font: 800 18px var(--display);
+  color: var(--amber);
+}
+
+.rewards {
+  display: grid;
+  gap: 6px;
+}
+
+.reward {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--amber);
+  color: var(--ink);
+  animation: lanpop 0.45s ease-out;
+}
+
+.reward .lvl {
+  font: 700 16px var(--sans);
+}
+
+.reward .what {
+  font: 900 19px var(--display);
+  font-variation-settings: 'SOFT' 100;
+}
+
 /* ---------------------------------------------------------------- timing test */
 
 .tuning .pad {
@@ -1333,7 +1857,7 @@ button:focus-visible {
     font-size: 24px;
   }
   .dockbtns {
-    gap: 10px;
+    gap: 26px;
   }
   .title {
     left: 24px;
@@ -1366,6 +1890,45 @@ button:focus-visible {
   .title h1,
   .title .reflect {
     font-size: min(10.5vw, 18vh);
+  }
+}
+
+@media (orientation: portrait) and (max-width: 640px) {
+  .dockbtns {
+    flex-direction: column;
+    top: calc(70px + var(--safe-top));
+    gap: 30px;
+  }
+  .signpost {
+    top: auto;
+    bottom: calc(118px + var(--safe-bottom));
+  }
+  .shop {
+    top: auto;
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + var(--safe-bottom));
+    width: auto;
+    height: 57%;
+  }
+  .items {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 460px) {
+  .signpost {
+    top: 62%;
+  }
+  .plaque {
+    top: calc(64px + var(--safe-top));
+  }
+  .shop {
+    top: calc(10px + var(--safe-top));
+    bottom: 10px;
+  }
+  .item {
+    min-height: 60px;
   }
 }
 

@@ -496,6 +496,20 @@ const fx = {
     if (!running()) return;
     bell(tonic + 12 + [0, 4, 7][k % 3] + 12, at(), 0.18, 0, sfxBus);
   },
+  /** A level reached: a rising harp and a warm bell chord. */
+  levelUp(tonic = 65) {
+    if (!running()) return;
+    const t = at();
+    [0, 4, 7, 12, 16, 19].forEach((semi, k) => TIMBRES.harp(tonic + 12 + semi, t + k * 0.05, 0.45, (k / 5 - 0.5) * 0.6, 1, sfxBus));
+    for (const semi of [0, 7, 12]) bell(tonic + 12 + semi, t + 0.32, 0.12, (semi - 6) * 0.04, sfxBus);
+  },
+  /** Something bought in the Boathouse: blooms poured into a till. */
+  buy() {
+    if (!running()) return;
+    const t = at();
+    for (let k = 0; k < 6; k++) tone('sine', freq(89 + [0, 3, 5, 7, 10, 12][k]), t + k * 0.04, { vol: 0.06, decay: 0.3, pan: (k / 5 - 0.5) * 0.6, bus: sfxBus });
+    tone('sine', 140, t, { vol: 0.16, decay: 0.2, to: 220 });
+  },
   tap() {
     if (!running()) return;
     const t = at();

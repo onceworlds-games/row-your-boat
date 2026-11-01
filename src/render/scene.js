@@ -33,7 +33,7 @@ export function createScene(canvas, { poster = false } = {}) {
   // ---------------------------------------------------------------- loading a stream
 
   function load(stream, course) {
-    if (cur && cur.id === stream.id) return cur;
+    if (cur && cur.course === course) return cur;
     if (cur) {
       scene.remove(cur.water.mesh, cur.river.group, cur.dream.group, cur.blooms.group);
       cur.water.dispose();
@@ -259,6 +259,23 @@ export function createScene(canvas, { poster = false } = {}) {
       lz = q.z;
       ly = c.portrait ? 0.4 : 1.1;
       follow = 1 - Math.exp(-dt * 3);
+    } else if (c.mode === 'boathouse' && b) {
+      // close on the player's boat at its berth, a slow sway round its bow; the boat sits clear of the Boathouse sign
+      const t = c.now ?? 0;
+      // from the stern quarter: the rower faces the stern
+      const a = b.h + Math.PI - 0.7 + Math.sin(t * 0.25) * 0.3;
+      const dist = c.portrait ? 6.2 : 5.2;
+      px = b.x + Math.sin(a) * dist;
+      pz = b.z - Math.cos(a) * dist;
+      py = c.portrait ? 2.6 : 1.9;
+      const dx = b.x - px;
+      const dz = b.z - pz;
+      const dl = Math.hypot(dx, dz) || 1;
+      const side = c.portrait ? 0 : 1.5;
+      lx = b.x + (-dz / dl) * side;
+      lz = b.z + (dx / dl) * side;
+      ly = c.portrait ? -0.35 : 0.85;
+      follow = 1 - Math.exp(-dt * 3);
     } else if (c.mode === 'fixed') {
       [px, py, pz] = c.pos;
       [lx, ly, lz] = c.look;
@@ -392,7 +409,7 @@ export function createScene(canvas, { poster = false } = {}) {
       if (!b.hidden) wakes.push({ x: b.x, z: b.z, h: b.h, v: b.away ? 0 : Math.max(b.v, 0.5) });
       if (b.id === f.focusId) focus = b;
       if (Math.abs(b.s - (f.focusS ?? b.s)) < 30 && !b.away) {
-        fx.wake(b.x, b.z, Math.sin(b.h), -Math.cos(b.h), b.v, b.slip, mine ? m.look.wake : null);
+        fx.wake(b.x, b.z, Math.sin(b.h), -Math.cos(b.h), b.v, b.slip, mine || Math.random() < 0.5 ? m.look.wake : null);
         if ((b.rapids ?? 0) > 0.5) fx.foam(b.x, b.z, 0.5);
       }
     }

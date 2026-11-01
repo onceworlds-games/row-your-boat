@@ -12,9 +12,11 @@ import { createScore } from './sim/score.js';
 import { wrap } from './sim/course.js';
 import { INTRO, JOIN, createNet, cleanBoat, cleanExtras, streamForRound } from './net.js';
 import { rowerLook, playerLook, assignPaints, createAvatars } from './looks.js';
-import { hatsOpen, starCount, GHOST_HZ, ghostAt } from './save.js';
-import { HAT_NAMES } from './render/boats.js';
+import { starCount, GHOST_HZ, ghostAt } from './save.js';
 import { ICON } from './ui/icons.js';
+import { levelOf, racePay, payInto, wishProgress, wishesOf, wishLabel, rowNight, moonShown, MOON, owns, buy, equip, priceOf, levelFor, KINDS } from './progress.js';
+import { tonight as tonightOf, nightOf, TWIST_NAMES, TWIST_LINES } from './sim/tonight.js';
+import { HAT_NAMES, BODY_NAMES, LANTERN_NAMES, LANTERN_COLORS, WAKE_NAMES, TRIM_NAMES, TRIM_COLORS } from './cosmetics.js';
 
 /** Metres between beat ripples on the water. */
 const SPACING = 7.5;
@@ -47,13 +49,24 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     }
   })();
   const P = () => store.profile;
+  /** What this player wears (their profile's, every item owned), and their level, for the boat and presence. */
+  const myWear = () => ({ ...P().equip, lv: levelOf(P().xp).level });
+  /** Tonight's night number, from the platform's clock. */
+  const nightNow = () => {
+    try {
+      const t = ow.now?.();
+      if (finite(t) && t > 0) return nightOf(t);
+    } catch {}
+    return nightOf(Date.now());
+  };
   const loadPerf = performance.now();
   let W = innerWidth;
   let H = innerHeight;
   let room = null;
   let net = null;
   let closed = null;
-  let screen = 'title'; // title | dock | chart | dream | timing
+  let screen = 'title'; // title | dock | chart | dream | timing | boathouse | tonight
+  let shop = null; // the Boathouse open: { tab, try (an item tried on, not owned) }
   let run = null; // the race on screen (a room round, a Dream run)
   let attract = null; // the title's race of rival rowers
   let primary = null; // what Space / Enter does on this screen
@@ -125,7 +138,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
 
   function lobbyPresence() {
     try {
-      room?.setPresence({ r: '', nb: P().first ? 0 : 1, hat: P().hat });
+      room?.setPresence({ r: '', nb: P().first ? 0 : 1, ...myWear() });
     } catch {}
   }
 
@@ -227,8 +240,8 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
 
   function lookOf(r, seat) {
     if (seat.bot) return rowerLook(seat.name);
-    const hat = seat.id === r.meId ? P().hat : cleanExtras(room?.players.get(seat.id)?.presence).hat;
-    return playerLook(avatars.get(seat.id), r.paints.get(seat.id) ?? 0, hat);
+    const wear = seat.id === r.meId ? myWear() : cleanExtras(room?.players.get(seat.id)?.presence);
+    return playerLook(avatars.get(seat.id), r.paints.get(seat.id) ?? 0, wear);
   }
 
   function refreshLooks(r, first = false) {
@@ -247,7 +260,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   /** o: { kind, key, n, seats, meId, ease, pilot, source } */
   function makeRun(o) {
     const stream = streamByN(o.n);
-    const sim = createRaceSim({ n: o.n, seats: o.seats, me: o.meId, key: o.key, ease: o.ease ?? 1, calib: P().calib, pilot: o.pilot ?? null });
+    const sim = createRaceSim({ n: o.n, seats: o.seats, me: o.meId, key: o.key, ease: o.ease ?? 1, calib: P().calib, pilot: o.pilot ?? null, twist: o.twist ?? null });
     const r = {
       ...o,
       stream,
@@ -346,7 +359,8 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     applyInsets();
   }
 
-  function startDream(n) {
+  /** A Dream stream (opts.twist and opts.tonight: Tonight's Dream). */
+  function startDream(n, opts = {}) {
     endRun();
     ui.modal(null);
     ui.chart(null);
@@ -360,17 +374,18 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const dc = { start: performance.now(), pausedMs: 0, pausedAt: null };
     const source = (perf) => ((dc.pausedAt ?? perf) - dc.start - dc.pausedMs) / 1000 - INTRO;
     const ease = P().first ? stream.ease : Math.max(1.35, stream.ease);
-    run = makeRun({ kind: 'dream', key: `dream:${n}`, n, seats, meId: 'me', ease, pilot: flags.autoplay ? flags.pilot : null, source });
+    const twist = opts.twist ?? null;
+    run = makeRun({ kind: 'dream', key: `dream:${n}${twist ? `:${twist}` : ''}`, n, seats, meId: 'me', ease, pilot: flags.autoplay ? flags.pilot : null, source, twist, tonight: opts.tonight ?? null });
     run.dc = dc;
     for (const s of seats) if (s.bot) run.sim.simulate(s.id);
     screen = 'dream';
     primary = null;
     applyLobby();
     applyInsets();
-    ui.streamName(stream.name, `The Dream · ${n} of ${STREAMS.length}`);
+    ui.streamName(stream.name, twist ? `Tonight's Dream · ${TWIST_NAMES[twist]}` : `The Dream · ${n} of ${STREAMS.length}`);
     if (!audio.running()) ui.tapToRow(true);
     const key = run.key;
-    if (P().dream[n]?.best) {
+    if (!twist && P().dream[n]?.best) {
       store.ghost(n).then((g) => {
         if (run && run.key === key && g) {
           run.ghost = g;
@@ -615,7 +630,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     if (r.meId && r.sim.me && perf - r.presAt > 66) {
       r.presAt = perf;
       try {
-        room.setPresence({ r: r.key, ...r.sim.me.snapshot(), nb: P().first ? 0 : 1, hat: P().hat });
+        room.setPresence({ r: r.key, ...r.sim.me.snapshot(), nb: P().first ? 0 : 1, ...myWear() });
       } catch {}
     }
     // this page's finish, until the host has written it down
@@ -1053,6 +1068,13 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     if (!r.meId || r.pilot != null || !m.last) return;
     const first = m.last.ranking[0] ?? [];
     const mine = d?.fin?.[r.meId];
+    let place = 1;
+    for (const g of m.last.ranking) {
+      if (g.includes(r.meId)) break;
+      place += g.length;
+    }
+    const got = settle(r, { finished: finite(mine), place, boats: r.seats.length });
+    if (got) setTimeout(() => run === r && ui.ledger(got, audio), 900);
     if (first.includes(r.meId) && finite(mine) && r.seats.length > 1) {
       P().totals.wins++;
       award('first-win');
@@ -1111,50 +1133,62 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const racer = r.sim.me;
     const rhythm = racer.judge.rhythm();
     const ft = r.myFin;
+    const twisted = r.tonight != null;
     const st = starsOf({ finished, place: r.myPlace, rhythm });
-    const prev = p.dream[n] ?? { best: null, stars: [0, 0, 0] };
-    const newBest = finished && (!prev.best || ft < prev.best);
+    const prev = p.dream[n] ?? { best: null, stars: [0, 0, 0], lilies: 0 };
+    const prevTonight = p.tonight?.day === r.tonight ? p.tonight.best : null;
+    const newBest = finished && (twisted ? !prevTonight || ft < prevTonight : !prev.best || ft < prev.best);
     const had = prev.stars.slice();
-    if (r.pilot == null) {
-      p.dream[n] = { best: newBest ? Math.round(ft * 1000) / 1000 : prev.best, stars: prev.stars.map((v, i) => (v || st[i] ? 1 : 0)) };
+    const allBlooms = racer.boat.blooms >= r.course.blooms.length && r.course.blooms.length > 0;
+    if (r.pilot == null && !twisted) {
+      p.dream[n] = { best: newBest ? Math.round(ft * 1000) / 1000 : prev.best, stars: prev.stars.map((v, i) => (v || st[i] ? 1 : 0)), lilies: prev.lilies || allBlooms ? 1 : 0 };
       if (newBest) store.saveGhost(n, r.ghostRec);
       if (STREAMS.every((s) => p.dream[s.n]?.best)) award('dreamer');
       if (starCount(p) >= STREAMS.length * 3) award('life-is-but-a-dream');
       store.save();
     }
+    const got = settle(r, { finished, place: r.myPlace, boats: r.seats.length });
     ui.hud(false);
     ui.oarHints(false);
     ui.stamp(0);
-    const next = n < STREAMS.length && (p.dream[n]?.best || finished) ? n + 1 : null;
-    const again = () => startDream(n);
+    const next = !twisted && n < STREAMS.length && (p.dream[n]?.best || finished) ? n + 1 : null;
+    const again = () => (twisted ? startDream(n, { twist: r.twist, tonight: r.tonight }) : startDream(n));
     ui.modal((el) => {
-      el.append(ui.h('h2', 'display', r.stream.name));
-      const s3 = ui.h('div', 'stars3');
-      st.forEach((on, i) => {
-        const e = ui.svgEl(on || had[i] ? ICON.starOn : ICON.starOff, on ? 'on' : '');
-        if (on) {
-          e.style.animationDelay = `${0.35 + i * 0.35}s`;
-          setTimeout(() => audio.fx.star(i, r.stream.tonic), 350 + i * 350);
-        }
-        s3.append(e);
-      });
-      el.append(s3);
-      const why = ui.h('div', 'why');
-      why.append(ui.h('span', '', 'Finish'), ui.h('span', '', 'First'), ui.h('span', '', 'Rhythm 85%'));
-      el.append(why);
+      el.classList.add('done');
+      el.append(ui.h('h2', 'display', twisted ? "Tonight's Dream" : r.stream.name));
+      if (twisted) el.append(ui.h('div', 'sub', `${r.stream.name} · ${TWIST_NAMES[r.twist]}`));
+      else {
+        const s3 = ui.h('div', 'stars3');
+        st.forEach((on, i) => {
+          const e = ui.svgEl(on || had[i] ? ICON.starOn : ICON.starOff, on ? 'on' : '');
+          if (on) {
+            e.style.animationDelay = `${0.35 + i * 0.35}s`;
+            setTimeout(() => audio.fx.star(i, r.stream.tonic), 350 + i * 350);
+          }
+          s3.append(e);
+        });
+        el.append(s3);
+        const why = ui.h('div', 'why');
+        why.append(ui.h('span', '', 'Finish'), ui.h('span', '', 'First'), ui.h('span', '', 'Rhythm 85%'));
+        el.append(why);
+      }
       el.append(ui.h('div', 'big', finished ? fmt(ft) : 'Out of time'));
       const lines = [];
-      if (newBest) lines.push('New best!');
-      else if (prev.best) lines.push(`Best ${fmt(prev.best)}`);
+      if (newBest) lines.push(twisted ? 'Best tonight!' : 'New best!');
+      else if (twisted ? prevTonight : prev.best) lines.push(`Best ${fmt(twisted ? prevTonight : prev.best)}`);
       lines.push(`Rhythm ${Math.round(rhythm * 100)}%`);
       el.append(ui.h('div', 'best', lines.join(' · ')));
+      if (got) el.append(ui.ledgerEl(got, audio));
       const row2 = ui.h('div', 'plank');
       row2.append(ui.button('oar small', 'Again', again, 'R'));
       if (next) row2.append(ui.button('btn amber', 'Next stream', () => startDream(next)));
-      row2.append(ui.button('btn ghost', 'The Dream', () => {
-        endRun();
-        openChart();
-      }));
+      row2.append(
+        ui.button('btn ghost', twisted ? 'The dock' : 'The Dream', () => {
+          endRun();
+          if (twisted) toDock();
+          else openChart();
+        }),
+      );
       el.append(row2);
     });
     primary = again;
@@ -1367,39 +1401,50 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     }
     const players = room ? [...room.players.values()].filter((p) => p.connected !== false).slice(0, 6) : [];
     const meFirst = players.sort((a, b) => (a.id === room?.me?.id ? -1 : b.id === room?.me?.id ? 1 : 0));
-    const hats = meFirst.map((p) => (p.id === room?.me?.id ? P().hat : cleanExtras(p.presence).hat));
+    const wears = meFirst.map((p) => (p.id === room?.me?.id ? { ...myWear(), ...(shop?.try ?? {}) } : cleanExtras(p.presence)));
+    const wearSig = (w) => `${w.hat}.${w.body}.${w.lantern}.${w.wake}.${w.trim}`;
     const isHost = !!room?.isHost;
     const race = Number(settings.race) === 3 ? 3 : 1;
     const watching = !!net?.round && !net.match.me;
     const solo = room?.kind === 'solo';
-    const sig = [n, race, isHost, solo, screen, watching, P().hat, P().dot, P().best[n] ?? '', room?.kind, meFirst.map((p, i) => `${p.id}:${p.ready ? 1 : 0}:${hats[i]}:${p.name}`).join(','), Object.keys(avatarsSeen(meFirst)).length].join('|');
+    const night = nightNow();
+    const sig = [n, race, isHost, solo, screen, watching, P().dot, P().xp, P().blooms, night, P().best[n] ?? '', room?.kind, meFirst.map((p, i) => `${p.id}:${p.ready ? 1 : 0}:${wearSig(wears[i])}:${p.name}`).join(','), Object.keys(avatarsSeen(meFirst)).length].join('|');
     if (sig !== dockSig) {
       dockSig = sig;
-      dockPlayers = meFirst.map((p, i) => ({ id: p.id, look: playerLook(avatars.get(p.id), i, hats[i]) }));
+      dockPlayers = meFirst.map((p, i) => ({ id: p.id, look: playerLook(avatars.get(p.id), i, wears[i]) }));
       scene.setBoats(dockPlayers);
-      if (screen === 'dock' && !closed) {
+      if ((screen === 'dock' || screen === 'tonight') && !closed) {
         const crewWaiting = room?.kind === 'private' && isHost && players.length > 1;
+        const lv = levelOf(P().xp);
         ui.dock(true, {
+          level: lv.level,
+          into: lv.into,
+          need: lv.need,
+          blooms: P().blooms,
+          onBoathouse: openBoathouse,
+          onTonight: openTonight,
+          tonightDot: tonightDot(night),
           stream: stream.name,
           race: race === 3 ? 'Cup of three' : 'One stream',
           isHost,
           onStream: (dir) => setSetting('stream', ((n - 1 + dir + STREAMS.length) % STREAMS.length) + 1),
           onRace: () => setSetting('race', race === 3 ? 1 : 3),
           best: P().best[n] ? fmt(P().best[n]) : null,
-          hat: HAT_NAMES[P().hat] ?? 'Nightcap',
-          onHat: (dir) => cycleHat(dir),
           dreamDim: crewWaiting,
           onDream: openChart,
           onTiming: openTiming,
           timingDot: !!P().dot,
         });
-        if (solo) {
+        if (screen !== 'dock') ui.start(false);
+        else if (solo) {
           ui.start(true, 'Race', startSolo);
           primary = startSolo;
         } else {
           ui.start(false);
           primary = null;
         }
+      } else if (screen === 'boathouse') {
+        ui.start(false);
       } else {
         ui.dock(false);
         ui.start(false);
@@ -1468,8 +1513,8 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       oar: null,
       ghost: null,
       calm: 0.6,
-      beam: false,
-      camera: { mode: 'dock', portrait: H > W },
+      beam: screen === 'boathouse',
+      camera: screen === 'boathouse' && boats[0] ? { mode: 'boathouse', portrait: H > W, boat: boats[0] } : { mode: 'dock', portrait: H > W },
       arch: { count: 0, finishLit: 9, sign: '' },
     };
   }
@@ -1487,14 +1532,249 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     } catch {}
   }
 
-  function cycleHat(dir) {
-    const open = hatsOpen(P());
-    const i = open.indexOf(P().hat);
-    P().hat = open[(((i + dir) % open.length) + open.length) % open.length] ?? 'nightcap';
+
+  // ---------------------------------------------------------------- the Boathouse
+
+  const SHOP_TABS = [
+    { id: 'body', label: 'Boat', names: BODY_NAMES },
+    { id: 'hat', label: 'Hat', names: HAT_NAMES },
+    { id: 'lantern', label: 'Lanterns', names: LANTERN_NAMES, colors: LANTERN_COLORS },
+    { id: 'wake', label: 'Wake', names: WAKE_NAMES },
+    { id: 'trim', label: 'Trim', names: TRIM_NAMES, colors: TRIM_COLORS },
+  ];
+
+  function openBoathouse() {
     audio.fx.tap();
+    screen = 'boathouse';
+    shop = { tab: 'body', try: null };
+    ui.dock(false);
+    ui.start(false);
+    ui.berths([]);
+    ui.tags([]);
+    dockSig = '';
+    applyLobby();
+    showShop();
+    primary = closeBoathouse;
+  }
+
+  function closeBoathouse() {
+    audio.fx.tap();
+    shop = null;
+    ui.boathouse(null);
+    screen = 'dock';
+    dockSig = '';
+    applyLobby();
+    primary = null;
+  }
+
+  function showShop() {
+    if (!shop) return;
+    const p = P();
+    const tab = SHOP_TABS.find((t) => t.id === shop.tab) ?? SHOP_TABS[0];
+    const cost = (id) => (KINDS[tab.id].free.includes(id) ? -1 : levelFor(tab.id, id) * 20 || priceOf(tab.id, id) || 0);
+    const items = [...KINDS[tab.id].list].sort((a, b) => cost(a) - cost(b)).map((id) => {
+      const own = owns(p, tab.id, id);
+      const on = (shop.try?.[tab.id] ?? p.equip[tab.id]) === id;
+      return { id, name: tab.names[id] ?? id, own, on, worn: p.equip[tab.id] === id, price: own ? null : priceOf(tab.id, id), level: own ? 0 : levelFor(tab.id, id), swatch: tab.colors?.[id] ?? null };
+    });
+    const tried = shop.try?.[tab.id];
+    let action = null;
+    if (tried && !owns(p, tab.id, tried)) {
+      const price = priceOf(tab.id, tried);
+      const lv = levelFor(tab.id, tried);
+      action = price !== null ? { label: `Buy · ${price}`, bloom: true, enabled: p.blooms >= price, onClick: () => buyTried(tab.id, tried) } : { label: `Level ${lv}`, enabled: false };
+    }
+    const lv = levelOf(p.xp);
+    ui.boathouse({
+      tabs: SHOP_TABS.map((t) => ({ id: t.id, label: t.label })),
+      tab: tab.id,
+      items,
+      blooms: p.blooms,
+      level: lv.level,
+      action,
+      onTab: (id) => {
+        audio.fx.tap();
+        shop.tab = id;
+        showShop();
+      },
+      onItem: (id) => pickItem(tab.id, id),
+      onClose: closeBoathouse,
+    });
+  }
+
+  function pickItem(kind, id) {
+    const p = P();
+    audio.fx.tap();
+    if (owns(p, kind, id)) {
+      Object.assign(p, equip(p, kind, id));
+      if (shop.try) delete shop.try[kind];
+      store.save();
+      lobbyPresence();
+    } else shop.try = { ...(shop.try ?? {}), [kind]: id };
+    dockSig = '';
+    showShop();
+  }
+
+  function buyTried(kind, id) {
+    const p = P();
+    const next = buy(p, kind, id);
+    if (!next) return;
+    Object.assign(p, equip(next, kind, id));
+    delete shop.try[kind];
+    audio.fx.buy?.();
     store.save();
     lobbyPresence();
     dockSig = '';
+    showShop();
+  }
+
+  // ---------------------------------------------------------------- Tonight's Dream, the wishes, the moon
+
+  function tonightDot(day) {
+    const p = P();
+    const rowed = p.tonight?.day === day && p.tonight.runs > 0;
+    const paid = p.night?.day === day ? p.night.paid.filter(Boolean).length : 0;
+    return !rowed || paid < 3;
+  }
+
+  /** Everyone's moonblooms tonight (shared), fetched when the card opens. */
+  let everyone = { day: -1, blooms: null, runs: [] };
+  function fetchEveryone(day) {
+    const g = ow.data?.game;
+    if (!g) return;
+    try {
+      const a = g.get?.('tonight-blooms');
+      if (a?.then) a.then((v) => {
+        if (finite(v)) everyone = { ...everyone, day, blooms: v };
+        if (screen === 'tonight') showTonight();
+      }).catch(() => {});
+      const b = g.get?.('tonight-runs');
+      if (b?.then) b.then((list) => {
+        everyone = { ...everyone, day, runs: tonightBoard(list, day) };
+        if (screen === 'tonight') showTonight();
+      }).catch(() => {});
+    } catch {}
+  }
+
+  /** Tonight's best times from the shared list: [{ name, t }], best first, one per player. */
+  function tonightBoard(list, day) {
+    if (!Array.isArray(list)) return [];
+    const best = new Map();
+    for (const it of list) {
+      const v = it?.value;
+      if (!v || v.d !== day || !finite(v.t) || v.t < 20 || v.t > 600) continue;
+      const id = it.by?.id;
+      const name = typeof it.by?.name === 'string' ? it.by.name.slice(0, 24) : '';
+      if (!id || !name) continue;
+      if (!best.has(id) || best.get(id).t > v.t) best.set(id, { name, t: v.t });
+    }
+    return [...best.values()].sort((a, b) => a.t - b.t).slice(0, 3);
+  }
+
+  function openTonight() {
+    audio.fx.tap();
+    screen = 'tonight';
+    ui.start(false);
+    fetchEveryone(nightNow());
+    showTonight();
+    primary = () => startTonight();
+  }
+
+  function closeTonight() {
+    ui.modal(null);
+    screen = 'dock';
+    dockSig = '';
+    primary = null;
+  }
+
+  function showTonight() {
+    const day = nightNow();
+    const t = tonightOf(day);
+    const st = streamByN(t.n);
+    const p = P();
+    const mine = p.tonight?.day === day ? p.tonight : null;
+    const wishes = wishesOf(day);
+    const night = p.night?.day === day ? p.night : null;
+    const moon = moonShown(p.moon, day);
+    ui.tonight({
+      stream: st.name,
+      twist: TWIST_NAMES[t.twist],
+      twistLine: TWIST_LINES[t.twist],
+      best: mine?.best ? fmt(mine.best) : null,
+      everyone: everyone.day === day ? everyone.blooms : null,
+      board: everyone.day === day ? everyone.runs.map((x) => ({ name: x.name, time: fmt(x.t) })) : [],
+      wishes: wishes.map((w, i) => ({ label: wishLabel(w), got: night ? night.got[i] : 0, n: w.n, done: !!night?.paid[i] })),
+      moon: { lit: moon.lit, tonight: moon.tonight, of: MOON },
+      onRow: () => startTonight(),
+      onClose: closeTonight,
+    });
+  }
+
+  function startTonight() {
+    const day = nightNow();
+    const t = tonightOf(day);
+    startDream(t.n, { twist: t.twist, tonight: day });
+  }
+
+  // ---------------------------------------------------------------- what a race pays
+
+  /** A run is over for this player: pay XP and blooms, count the wishes and the night. Once a run. */
+  function settle(r, o) {
+    if (r.settled || r.pilot != null || !r.meId || !r.sim.me || r.kind === 'attract') return null;
+    r.settled = true;
+    const p = P();
+    const day = nightNow();
+    const js = r.sim.me.judge.state;
+    const b = r.sim.me.boat;
+    const won = o.finished && o.place === 1 && o.boats >= 2;
+    const stats = { perfect: js.perfect ?? 0, pull: js.pulls ?? 0, bloom: b.blooms ?? 0, shave: b.shaves ?? 0, rush: js.rushes ?? 0, race: o.finished ? 1 : 0, win: won ? 1 : 0, clean: o.finished && r.bumps === 0 ? 1 : 0, tonight: r.tonight != null && o.finished ? 1 : 0 };
+    const night = rowNight(p.moon, day);
+    const tonightFirst = r.tonight === day && o.finished && !(p.tonight?.day === day && p.tonight.best);
+    const pay = racePay({ ...o, score: r.score.state.total, blooms: b.blooms ?? 0, firstOfNight: night.first, tonight: tonightFirst });
+    const wish = wishProgress(p.night, day, stats);
+    const before = { xp: p.xp, blooms: p.blooms };
+    const res = payInto(p, pay.xp + wish.xp, pay.blooms + wish.blooms + night.blooms);
+    Object.assign(p, res.p);
+    p.night = wish.night;
+    p.moon = night.moon;
+    p.totals.pulls += stats.pull;
+    p.totals.rushes += stats.rush;
+    p.totals.blooms += stats.bloom;
+    p.totals.shaves += stats.shave;
+    if (r.tonight === day) {
+      const tn = p.tonight?.day === day ? { ...p.tonight } : { day, best: null, score: 0, runs: 0 };
+      tn.runs++;
+      if (o.finished && (!tn.best || r.myFin < tn.best)) tn.best = Math.round(r.myFin * 1000) / 1000;
+      tn.score = Math.max(tn.score, Math.round(r.score.state.total));
+      p.tonight = tn;
+      try {
+        if (stats.bloom > 0) ow.data?.game?.add?.('tonight-blooms', Math.min(120, stats.bloom))?.catch?.(() => {});
+        if (o.finished && finite(r.myFin)) ow.data?.game?.push?.('tonight-runs', { d: day, t: Math.round(r.myFin * 100) / 100 })?.catch?.(() => {});
+      } catch {}
+    }
+    if (levelOf(p.xp).level >= 10) award('level-10');
+    if (night.full) award('full-moon');
+    if (wish.night.all) award('three-wishes');
+    store.submit('moonblooms', p.totals.blooms);
+    store.save();
+    lobbyPresence();
+    return {
+      xp0: before.xp,
+      xp1: p.xp,
+      blooms0: before.blooms,
+      blooms1: p.blooms,
+      parts: [...pay.parts, ...wish.done.map((i) => ({ label: wishLabel(wishesOf(day)[i]), xp: 100, wish: true }))],
+      night: night.first ? { n: night.moon.n, blooms: night.blooms, full: night.full } : null,
+      rewards: res.rewards.map((rw) => ({ level: rw.level, label: rewardLabel(rw) })),
+      score: Math.round(r.score.state.total),
+    };
+  }
+
+  function rewardLabel(rw) {
+    if (rw.kind === 'blooms') return `${rw.n} moonblooms`;
+    const names = { body: BODY_NAMES, hat: HAT_NAMES, lantern: LANTERN_NAMES, wake: WAKE_NAMES, trim: TRIM_NAMES }[rw.kind] ?? {};
+    const what = { body: '', hat: '', lantern: ' lanterns', wake: ' wake', trim: ' trim' }[rw.kind] ?? '';
+    return `${names[rw.id] ?? rw.id}${what}`;
   }
 
   function startSolo() {

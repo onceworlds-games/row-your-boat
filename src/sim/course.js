@@ -282,7 +282,9 @@ export function buildCourse(def) {
       logs.some((l) => Math.abs(l.s - s) < l.len / 2 + 1.5 && Math.abs(l.d0 - d) < l.amp + 1.6) ||
       pendulums.some((p) => Math.abs(p.s - s) < 3);
     let k = 0;
-    for (let s0 = start + 18; s0 < finish - 16; s0 += 26 + B.next() * 14, k++) {
+    const gapOf = def.bloomGap ?? 26;
+    const spread = def.bloomGap ? def.bloomGap * 0.54 : 14;
+    for (let s0 = start + 18; s0 < finish - 16; s0 += gapOf + B.next() * spread, k++) {
       const n = 5;
       const gap = 2.7;
       const isl = islandAt(s0 + gap * 2);

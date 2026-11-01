@@ -7,6 +7,7 @@ import { createBots } from '@onceworlds/sdk/bots';
 import { STREAMS, ROWER_NAMES, streamByN } from './sim/streams.js';
 import { CUP_POINTS, outcome, plausibleFinish, raceOver } from './sim/race.js';
 import { courseOf } from './race.js';
+import { KINDS, MAX_LEVEL } from './progress.js';
 
 /** The count-in before the first beat of every stream (seconds). */
 export const INTRO = 4;
@@ -57,12 +58,13 @@ export function cleanBoat(raw, prev = null, total = 2000) {
   return out;
 }
 
-/** What a player's presence says beyond their boat: a newcomer flag and their hat. */
+/** What a player's presence says beyond their boat: a newcomer flag and what they wear (only known items). */
 export function cleanExtras(raw) {
-  const out = { nb: 0, hat: 'nightcap', r: '' };
+  const out = { nb: 0, hat: 'nightcap', body: 'rowboat', lantern: 'amber', wake: 'none', trim: 'cream', lv: 1, r: '' };
   if (!raw || typeof raw !== 'object') return out;
   if (raw.nb === 1) out.nb = 1;
-  if (typeof raw.hat === 'string' && /^[a-z]{3,12}$/.test(raw.hat)) out.hat = raw.hat;
+  for (const kind of ['hat', 'body', 'lantern', 'wake', 'trim']) if (typeof raw[kind] === 'string' && KINDS[kind].list.includes(raw[kind])) out[kind] = raw[kind];
+  if (Number.isInteger(raw.lv) && raw.lv >= 1 && raw.lv <= MAX_LEVEL) out.lv = raw.lv;
   if (typeof raw.r === 'string' && raw.r.length <= 80) out.r = raw.r;
   return out;
 }

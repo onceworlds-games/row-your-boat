@@ -19,8 +19,15 @@
     { "id": "life-is-but-a-dream", "name": "Life Is But a Dream", "description": "Earn all 24 stars of The Dream.", "icon": "store/badge-life-is-but-a-dream.png" },
     { "id": "merrily-rush", "name": "Merrily!", "description": "Row all twelve notes of a merrily bar.", "icon": "store/badge-merrily-rush.png" },
     { "id": "bouquet", "name": "Bouquet", "description": "Take all five moonblooms of a line.", "icon": "store/badge-bouquet.png" },
-    { "id": "close-shave", "name": "Close Shave", "description": "Slip past a rock with a hand's width to spare.", "icon": "store/badge-close-shave.png" }
+    { "id": "close-shave", "name": "Close Shave", "description": "Slip past a rock with a hand's width to spare.", "icon": "store/badge-close-shave.png" },
+    { "id": "level-10", "name": "Old Salt", "description": "Reach level 10.", "icon": "store/badge-level-10.png" },
+    { "id": "three-wishes", "name": "Three Wishes", "description": "Grant all three of a night's wishes.", "icon": "store/badge-three-wishes.png" },
+    { "id": "full-moon", "name": "Full Moon", "description": "Row seven nights running.", "icon": "store/badge-full-moon.png" }
   ],
+  "data": {
+    "tonight-blooms": { "type": "counter", "max": 100000000, "add": [1, 120], "reset": "daily" },
+    "tonight-runs": { "type": "list", "max": 100, "bytes": 64 }
+  },
   "controls": [
     { "keys": ["A", "←", "J"], "action": "Left oar: on the beat" },
     { "keys": ["D", "→", "K"], "action": "Right oar: on the beat" },

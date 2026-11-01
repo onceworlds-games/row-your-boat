@@ -7,17 +7,23 @@ import { createRacer, qualityCode, QUALITY_CODES } from './sim/racer.js';
 import { createBrain, botParams, habitOf } from './sim/bot.js';
 import { startSlot, order } from './sim/race.js';
 import { streamByN } from './sim/streams.js';
+import { twistDef } from './sim/tonight.js';
 
 const courses = new Map();
-/** Courses are pure data: build each stream once. */
-export function courseOf(stream) {
-  if (!courses.has(stream.id)) courses.set(stream.id, buildCourse(stream));
-  return courses.get(stream.id);
+/** Courses are pure data: build each stream (and each twist of it) once. */
+export function courseOf(stream, twist = null) {
+  const key = `${stream.id}|${twist ?? ''}`;
+  if (!courses.has(key)) courses.set(key, buildCourse(twistDef(stream, twist)));
+  return courses.get(key);
 }
 const songs = new Map();
-export function songOf(stream) {
-  if (!songs.has(stream.id)) songs.set(stream.id, makeSong(stream.bpm));
-  return songs.get(stream.id);
+export function songOf(stream, twist = null) {
+  const key = `${stream.id}|${twist ?? ''}`;
+  if (!songs.has(key)) {
+    const def = twistDef(stream, twist);
+    songs.set(key, makeSong(def.bpm, { golden: !!def.golden }));
+  }
+  return songs.get(key);
 }
 
 const NEAR = 14;
@@ -27,10 +33,10 @@ const NEAR = 14;
  * bots' choices). ease/calib: the player's judging windows and calibration. pilot: a skill for the player's own boat to
  * row itself (the trailer, attract mode), or null.
  */
-export function createRaceSim({ n = 1, seats, me = null, key = 'race', ease = 1, calib = 0, pilot = null, botEase = null }) {
+export function createRaceSim({ n = 1, seats, me = null, key = 'race', ease = 1, calib = 0, pilot = null, botEase = null, twist = null }) {
   const stream = streamByN(n);
-  const course = courseOf(stream);
-  const song = songOf(stream);
+  const course = courseOf(stream, twist);
+  const song = songOf(stream, twist);
   const racers = new Map();
   const views = new Map();
   const seatOf = new Map(seats.map((s) => [s.id, s]));

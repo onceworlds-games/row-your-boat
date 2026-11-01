@@ -2,14 +2,36 @@
 // platform, or when a call fails, the game carries on.
 
 import { STREAMS } from './sim/streams.js';
+import { KINDS, owns } from './progress.js';
 
 const ow = () => window.onceworlds;
 
-export const HAT_UNLOCK = { nightcap: 0, scarf: 6, beret: 12, souwester: 18, crown: 24 };
+// The first build unlocked hats with stars; a profile from then keeps the hats it had.
+const OLD_HAT_STARS = { nightcap: 0, scarf: 6, beret: 12, souwester: 18, crown: 24 };
+
+const TOTALS = ['races', 'wins', 'perfects', 'pulls', 'rushes', 'blooms', 'shaves'];
 
 export function blankProfile() {
-  return { v: 1, calib: 0, hints: {}, first: 0, dream: {}, best: {}, totals: { races: 0, wins: 0, perfects: 0 }, hat: 'nightcap', dot: 0 };
+  return {
+    v: 2,
+    calib: 0,
+    hints: {},
+    first: 0,
+    dream: {},
+    best: {},
+    totals: Object.fromEntries(TOTALS.map((k) => [k, 0])),
+    dot: 0,
+    xp: 0,
+    blooms: 0,
+    bought: [],
+    equip: { body: 'rowboat', hat: 'nightcap', lantern: 'amber', wake: 'none', trim: 'cream' },
+    night: null,
+    moon: null,
+    tonight: null,
+  };
 }
+
+const int = (v, lo, hi) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.floor(v))) : lo);
 
 /** A profile read back from storage, with anything odd replaced by the default. */
 export function cleanProfile(raw) {
@@ -19,27 +41,60 @@ export function cleanProfile(raw) {
   if (raw.hints && typeof raw.hints === 'object') for (const [k, v] of Object.entries(raw.hints)) if (typeof k === 'string' && k.length < 24 && v) p.hints[k] = 1;
   p.first = raw.first ? 1 : 0;
   p.dot = raw.dot ? 1 : 0;
-  if (typeof raw.hat === 'string' && raw.hat in HAT_UNLOCK) p.hat = raw.hat;
   if (raw.dream && typeof raw.dream === 'object') {
     for (const s of STREAMS) {
       const d = raw.dream[s.n];
       if (!d || typeof d !== 'object') continue;
       const best = Number.isFinite(d.best) && d.best > 0 ? d.best : null;
       const stars = Array.isArray(d.stars) ? [0, 1, 2].map((i) => (d.stars[i] ? 1 : 0)) : [0, 0, 0];
-      if (best || stars.some(Boolean)) p.dream[s.n] = { best, stars };
+      const lilies = d.lilies ? 1 : 0;
+      if (best || stars.some(Boolean) || lilies) p.dream[s.n] = { best, stars, lilies };
     }
   }
   if (raw.best && typeof raw.best === 'object') {
     for (const s of STREAMS) if (Number.isFinite(raw.best[s.n]) && raw.best[s.n] > 0) p.best[s.n] = raw.best[s.n];
   }
-  if (raw.totals && typeof raw.totals === 'object') {
-    for (const k of ['races', 'wins', 'perfects']) if (Number.isFinite(raw.totals[k])) p.totals[k] = Math.max(0, Math.floor(raw.totals[k]));
+  if (raw.totals && typeof raw.totals === 'object') for (const k of TOTALS) p.totals[k] = int(raw.totals[k], 0, 1e9);
+  p.xp = int(raw.xp, 0, 1e8);
+  p.blooms = int(raw.blooms, 0, 1e8);
+  if (Array.isArray(raw.bought)) {
+    const seen = new Set();
+    for (const k of raw.bought.slice(0, 128)) {
+      if (typeof k !== 'string' || seen.has(k)) continue;
+      const [kind, id] = k.split(':');
+      if (KINDS[kind]?.list.includes(id)) seen.add(k);
+    }
+    p.bought = [...seen];
+  }
+  // a profile from the first build: its hat stays, and its races count toward a level
+  if (raw.v === 1 || raw.v === undefined) {
+    const stars = starCount(p);
+    if (typeof raw.hat === 'string' && raw.hat in OLD_HAT_STARS && stars >= OLD_HAT_STARS[raw.hat]) {
+      if (raw.hat !== 'nightcap' && !p.bought.includes(`hat:${raw.hat}`)) p.bought.push(`hat:${raw.hat}`);
+      p.equip.hat = raw.hat;
+    }
+    p.xp = Math.max(p.xp, Math.min(20000, p.totals.races * 50 + stars * 40));
+  }
+  if (raw.equip && typeof raw.equip === 'object') {
+    for (const kind of Object.keys(KINDS)) {
+      const id = raw.equip[kind];
+      if (typeof id === 'string' && owns(p, kind, id)) p.equip[kind] = id;
+    }
+  }
+  const n = raw.night;
+  if (n && typeof n === 'object' && Number.isInteger(n.day) && Array.isArray(n.got) && Array.isArray(n.paid)) {
+    p.night = { day: n.day, got: [0, 1, 2].map((i) => int(n.got[i], 0, 9999)), paid: [0, 1, 2].map((i) => (n.paid[i] ? 1 : 0)), all: n.all ? 1 : 0 };
+  }
+  const m = raw.moon;
+  if (m && typeof m === 'object' && Number.isInteger(m.last)) p.moon = { last: m.last, n: int(m.n, 0, 1e6), best: int(m.best, 0, 1e6), total: int(m.total, 0, 1e6) };
+  const t = raw.tonight;
+  if (t && typeof t === 'object' && Number.isInteger(t.day)) {
+    p.tonight = { day: t.day, best: Number.isFinite(t.best) && t.best > 0 ? t.best : null, score: int(t.score, 0, 1e8), runs: int(t.runs, 0, 1e4) };
   }
   return p;
 }
 
 export const starCount = (p) => Object.values(p.dream).reduce((n, d) => n + d.stars.reduce((a, b) => a + b, 0), 0);
-export const hatsOpen = (p) => Object.entries(HAT_UNLOCK).filter(([, need]) => starCount(p) >= need).map(([k]) => k);
 
 let timer = null;
 export function createStore() {

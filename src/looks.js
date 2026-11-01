@@ -2,19 +2,20 @@
 // once per player; until one arrives the player wears their paint's colours.
 
 import { PAINTS, ROWERS } from './sim/streams.js';
-import { HATS } from './render/boats.js';
+import { HATS, BODIES, LANTERNS, WAKES, TRIMS } from './cosmetics.js';
 
 // The platform's avatar colour lists (skin tones, then clothes), in its order.
 export const SKINS = ['#f6dcc5', '#ebc29f', '#d4a07a', '#b07a55', '#875839', '#5e3d29', '#93c9bb', '#a8c595', '#94bcd3', '#ab9bd9', '#dca3ad', '#b3bccb'];
 export const COLORS = ['#c95f56', '#dc8a4f', '#e2bd52', '#9cc27a', '#5a8a5e', '#4f9a8e', '#6fb7c8', '#5b87c5', '#465089', '#8b68a8', '#dc8fae', '#f2eee6', '#a9a8ad', '#5d5c63', '#2b2a30', '#80604d'];
 
+// the rivals row what players can earn: each has their own boat, lanterns and wake
 const DRESS = {
-  Mabel: { shirt: '#dc8fae', skin: '#f6dcc5', pants: '#465089', hatColor: '#f2eee6' },
-  Otis: { shirt: '#5a8a5e', skin: '#b07a55', pants: '#2b2a30', hatColor: '#80604d' },
-  Wren: { shirt: '#6fb7c8', skin: '#ebc29f', pants: '#5d5c63', hatColor: '#e2bd52' },
-  Barty: { shirt: '#c95f56', skin: '#d4a07a', pants: '#465089', hatColor: '#2b2a30' },
-  Juniper: { shirt: '#8b68a8', skin: '#875839', pants: '#2b2a30', hatColor: '#c95f56' },
-  Pell: { shirt: '#e2bd52', skin: '#f6dcc5', pants: '#5b87c5', hatColor: '#e2bd52' },
+  Mabel: { shirt: '#dc8fae', skin: '#f6dcc5', pants: '#465089', hatColor: '#f2eee6', body: 'swan', lantern: 'rose', wake: 'petals', trim: 'rose' },
+  Otis: { shirt: '#5a8a5e', skin: '#b07a55', pants: '#2b2a30', hatColor: '#80604d', body: 'canoe', lantern: 'sage', wake: 'none', trim: 'cream' },
+  Wren: { shirt: '#6fb7c8', skin: '#ebc29f', pants: '#5d5c63', hatColor: '#e2bd52', body: 'paper', lantern: 'moon', wake: 'stars', trim: 'navy' },
+  Barty: { shirt: '#c95f56', skin: '#d4a07a', pants: '#465089', hatColor: '#2b2a30', body: 'tub', lantern: 'ember', wake: 'bubbles', trim: 'gold' },
+  Juniper: { shirt: '#8b68a8', skin: '#875839', pants: '#2b2a30', hatColor: '#c95f56', body: 'teacup', lantern: 'lilac', wake: 'notes', trim: 'gold' },
+  Pell: { shirt: '#e2bd52', skin: '#f6dcc5', pants: '#5b87c5', hatColor: '#e2bd52', body: 'walnut', lantern: 'amber', wake: 'fireflies', trim: 'mint' },
 };
 
 const pick = (list, i, dflt) => (Number.isInteger(i) && i >= 0 && i < list.length ? list[i] : dflt);
@@ -27,19 +28,27 @@ export function rowerLook(name) {
   return { paint: p.color, symbol: p.symbol, hat: r.hat, ...(DRESS[base] ?? DRESS.Mabel) };
 }
 
-/** A player's look: their avatar's colours (when known), a paint and a hat. */
-export function playerLook(avatar, paint, hat = 'nightcap') {
+/**
+ * A player's look: their avatar's colours (when known), a paint, and what they wear (wear: { hat, body, lantern, wake,
+ * trim }, already checked: the player's own profile, or another's presence through cleanExtras).
+ */
+export function playerLook(avatar, paint, wear = {}) {
   const p = PAINTS[((paint % PAINTS.length) + PAINTS.length) % PAINTS.length];
   const a = avatar && typeof avatar === 'object' ? avatar : {};
   const shirt = pick(COLORS, a.shirt, p.color === '#F4EBD0' ? '#5b87c5' : p.color);
+  const w = typeof wear === 'string' ? { hat: wear } : wear ?? {};
   return {
     paint: p.color,
     symbol: p.symbol,
     shirt,
     skin: pick(SKINS, a.skin, '#ebc29f'),
     pants: pick(COLORS, a.pants, '#465089'),
-    hat: HATS.includes(hat) ? hat : 'nightcap',
+    hat: HATS.includes(w.hat) ? w.hat : 'nightcap',
     hatColor: pick(COLORS, Number.isInteger(a.shirt) ? (a.shirt + 5) % COLORS.length : null, '#f2eee6'),
+    body: BODIES.includes(w.body) ? w.body : 'rowboat',
+    lantern: LANTERNS.includes(w.lantern) ? w.lantern : 'amber',
+    wake: WAKES.includes(w.wake) ? w.wake : 'none',
+    trim: TRIMS.includes(w.trim) ? w.trim : 'cream',
   };
 }
 

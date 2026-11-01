@@ -2,6 +2,7 @@
 
 import { ICON, symbolSvg, moonPhase } from './icons.js';
 import { clock, ordinal } from '../sim/race.js';
+import { levelOf as levelInfo } from '../progress.js';
 
 function h(tag, cls = '', text = null) {
   const e = document.createElement(tag);
@@ -33,6 +34,27 @@ function placeText(el, n) {
   el.append(document.createTextNode(String(n)));
   const sup = h('sup', '', ordinal(n));
   el.append(sup);
+}
+
+function wallet(n) {
+  const w = h('span', 'wallet');
+  w.append(svgEl(ICON.bloom, 'ic'), h('span', 'n', Number(n).toLocaleString('en-US')));
+  return w;
+}
+
+/** The rower's plaque on the Dock: m: { level, into, need, blooms } */
+function plaque(m) {
+  const e = h('div', 'sign plaque');
+  const lv = h('span', 'lv display', String(m.level));
+  const mid = h('span', 'mid');
+  mid.append(h('span', 'cap', m.need ? `Level ${m.level}` : 'Top level'));
+  const bar = h('span', 'xpbar');
+  const fill = h('span', 'fill');
+  fill.style.width = `${m.need ? Math.min(100, (m.into / m.need) * 100) : 100}%`;
+  bar.append(fill);
+  mid.append(bar);
+  e.append(lv, mid, wallet(m.blooms));
+  return e;
 }
 
 export function createUI(root, tagRoot) {
@@ -117,26 +139,219 @@ export function createUI(root, tagRoot) {
       sign.append(r1, r2);
       if (m.best) sign.append(h('div', 'best', `Best ${m.best}`));
       post.append(sign);
-      if (m.hat) {
-        const hs = h('div', 'sign hatsign');
-        const r = h('div', 'row');
-        r.append(button('arrow', '‹', () => m.onHat?.(-1)), h('div', 'val', m.hat), button('arrow', '›', () => m.onHat?.(1)));
-        hs.append(r);
-        post.append(hs);
-      }
       post.append(h('div', 'post'));
       L.append(post);
+      // the rower's plaque: level, the way to the next, moonblooms to spend
+      if (m.level) L.append(plaque(m));
       const btns = h('div', 'dockbtns');
       btns.style.right = `${14 + (insets.right || 0)}px`;
-      const moon = button(`disc${m.dreamDim ? ' dim' : ''}`, svgEl(ICON.moon), m.onDream);
-      moon.setAttribute('aria-label', 'The Dream');
-      moon.append(h('span', 'lab', m.dreamDim ? 'Crew waiting' : 'Dream'));
-      const fork = button('disc', svgEl(ICON.fork), m.onTiming);
-      fork.setAttribute('aria-label', 'Timing');
-      fork.append(h('span', 'lab', 'Timing'));
-      if (m.timingDot) fork.append(h('span', 'dot'));
-      btns.append(fork, moon);
+      const disc = (icon, label, onClick, dot = false, dim = false) => {
+        const b = button(`disc${dim ? ' dim' : ''}`, svgEl(icon), onClick);
+        b.setAttribute('aria-label', label);
+        b.append(h('span', 'lab', label));
+        if (dot) b.append(h('span', 'dot'));
+        return b;
+      };
+      if (m.onBoathouse) btns.append(disc(ICON.boat, 'Boathouse', m.onBoathouse));
+      if (m.onTonight) btns.append(disc(ICON.tonight, 'Tonight', m.onTonight, m.tonightDot));
+      btns.append(disc(ICON.moon, m.dreamDim ? 'Crew waiting' : 'Dream', m.onDream, false, m.dreamDim));
+      btns.append(disc(ICON.fork, 'Timing', m.onTiming, m.timingDot));
       L.append(btns);
+    },
+
+    // ------------------------------------------------------------ the Boathouse (beside the boat, no scrim)
+    /**
+     * d: { tabs: [{ id, label }], tab, items: [{ id, name, own, on, worn, price, level, swatch }], blooms, level,
+     * action: { label, bloom, enabled, onClick } | null, onTab, onItem, onClose } or null to close.
+     */
+    boathouse(d) {
+      clear('boathouse');
+      if (!d) return;
+      const L = layer('boathouse');
+      const box = h('div', 'sign shop');
+      const head = h('div', 'shophead');
+      head.append(h('h2', '', 'Boathouse'));
+      head.append(wallet(d.blooms));
+      const close = button('disc small', svgEl(ICON.back), d.onClose);
+      close.setAttribute('aria-label', 'Back');
+      head.append(close);
+      box.append(head);
+      const tabs = h('div', 'tabs');
+      for (const t of d.tabs) {
+        const b = button(`tab${t.id === d.tab ? ' on' : ''}`, t.label, () => d.onTab(t.id));
+        tabs.append(b);
+      }
+      box.append(tabs);
+      const grid = h('div', 'items');
+      for (const it of d.items) {
+        const b = button(`item${it.on ? ' on' : ''}${it.own ? ' own' : ''}`, null, () => d.onItem(it.id));
+        if (it.swatch) {
+          const sw = h('span', 'sw');
+          sw.style.background = it.swatch;
+          b.append(sw);
+        }
+        b.append(h('span', 'nm', it.name));
+        const tag = h('span', 'st');
+        if (it.worn) tag.append(svgEl(ICON.readyOn, 'ok'));
+        else if (it.own) tag.textContent = '';
+        else if (it.price !== null) tag.append(svgEl(ICON.bloom, 'ic'), document.createTextNode(String(it.price)));
+        else if (it.level) tag.append(svgEl(ICON.lock, 'ic'), document.createTextNode(`Level ${it.level}`));
+        b.append(tag);
+        grid.append(b);
+      }
+      box.append(grid);
+      if (d.action) {
+        const a = h('div', 'plank');
+        const b = button(`btn${d.action.enabled ? ' amber' : ' ghost'}`, null, () => d.action.enabled && d.action.onClick());
+        if (d.action.bloom) b.append(svgEl(ICON.bloom, 'ic'));
+        b.append(document.createTextNode(d.action.label));
+        if (!d.action.enabled) b.setAttribute('aria-disabled', 'true');
+        a.append(b);
+        box.append(a);
+      }
+      L.append(box);
+    },
+
+    // ------------------------------------------------------------ Tonight's Dream, the wishes, the moon
+    /**
+     * d: { stream, twist, twistLine, best, everyone, board: [{ name, time }], wishes: [{ label, got, n, done }],
+     * moon: { lit, tonight, of }, onRow, onClose }
+     */
+    tonight(d) {
+      return ui.modal((el) => {
+        el.classList.add('tonight');
+        const close = button('disc small corner', svgEl(ICON.back), d.onClose);
+        close.setAttribute('aria-label', 'Back');
+        el.append(close);
+        el.append(h('h2', 'display', "Tonight's Dream"));
+        const card = h('div', 'tcard');
+        const nm = h('div', 'tname');
+        nm.append(h('span', 'st', d.stream), h('span', 'tw', d.twist));
+        card.append(nm);
+        card.append(h('div', 'tline', d.twistLine));
+        const facts = h('div', 'tfacts');
+        if (d.best) facts.append(h('span', 'mine', `Best tonight ${d.best}`));
+        if (Number.isFinite(d.everyone) && d.everyone > 0) {
+          const e = h('span', 'all');
+          e.append(svgEl(ICON.bloom, 'ic'), document.createTextNode(`${d.everyone.toLocaleString('en-US')} tonight`));
+          facts.append(e);
+        }
+        if (facts.children.length) card.append(facts);
+        if (d.board?.length) {
+          const b = h('div', 'tboard');
+          d.board.forEach((x, i) => {
+            const r = h('div', 'trow');
+            r.append(h('span', 'pl', String(i + 1)), h('span', 'nm', x.name), h('span', 'tm', x.time));
+            b.append(r);
+          });
+          card.append(b);
+        }
+        const go = h('div', 'plank');
+        go.append(button('oar small amber', 'Row', d.onRow, 'Space'));
+        card.append(go);
+        el.append(card);
+        el.append(h('h3', '', 'Wishes'));
+        const ws = h('div', 'wishes');
+        for (const w of d.wishes) {
+          const r = h('div', `wish${w.done ? ' done' : ''}`);
+          r.append(svgEl(w.done ? ICON.readyOn : ICON.readyOff, 'ck'));
+          r.append(h('span', 'lab', w.label));
+          r.append(h('span', 'n', w.done ? '' : `${w.got}/${w.n}`));
+          const bar = h('span', 'bar');
+          const fill = h('span', 'fill');
+          fill.style.width = `${Math.min(100, (w.got / w.n) * 100)}%`;
+          bar.append(fill);
+          r.append(bar);
+          ws.append(r);
+        }
+        el.append(ws);
+        el.append(h('h3', '', 'Moon'));
+        const mc = h('div', 'mooncal');
+        for (let i = 0; i < d.moon.of; i++) {
+          const on = i < d.moon.lit;
+          const e = svgEl(moonPhase(Math.round((i / (d.moon.of - 1)) * 7), on), `mn${on ? ' on' : ''}${on && i === d.moon.lit - 1 && d.moon.tonight ? ' now' : ''}`);
+          mc.append(e);
+        }
+        el.append(mc);
+      });
+    },
+
+    /** A short ledger of what a race paid, floating in over the results. Built by ledgerEl. */
+    ledger(got, audio) {
+      const L = layer('ledger');
+      L.textContent = '';
+      if (!got) return;
+      const e = ui.ledgerEl(got, audio);
+      e.classList.add('float');
+      L.append(e);
+      setTimeout(() => e.classList.add('out'), 7000);
+      setTimeout(() => e.remove(), 7600);
+    },
+
+    /** got: { xp0, xp1, blooms0, blooms1, parts: [{ label, xp, wish }], night, rewards: [{ level, label }], score } */
+    ledgerEl(got, audio) {
+      const e = h('div', 'ledger');
+      const top = h('div', 'lrow top');
+      const lv0 = levelInfo(got.xp0);
+      const lv1 = levelInfo(got.xp1);
+      const badge = h('span', 'lv display', String(lv0.level));
+      const bar = h('span', 'xpbar');
+      const fill = h('span', 'fill');
+      fill.style.width = `${lv0.need ? (lv0.into / lv0.need) * 100 : 100}%`;
+      bar.append(fill);
+      const plus = h('span', 'plus display', `+${got.xp1 - got.xp0}`);
+      top.append(badge, bar, plus);
+      e.append(top);
+      const parts = h('div', 'parts');
+      for (const p of got.parts) {
+        const r = h('div', `part${p.wish ? ' wish' : ''}`);
+        r.append(h('span', '', p.label), h('span', 'x', `+${p.xp}`));
+        parts.append(r);
+      }
+      e.append(parts);
+      const foot = h('div', 'lrow foot');
+      const b = h('span', 'blm');
+      const bn = h('span', 'n', `+${got.blooms1 - got.blooms0}`);
+      b.append(svgEl(ICON.bloom, 'ic'), bn);
+      foot.append(b);
+      if (got.night) foot.append(h('span', 'night', got.night.full ? 'Full moon!' : `Night ${got.night.n}`));
+      e.append(foot);
+      const rw = h('div', 'rewards');
+      e.append(rw);
+      // the bar fills, level by level, then the rewards come in
+      const steps = [];
+      for (let lv = lv0.level; lv <= lv1.level; lv++) steps.push(lv);
+      let i = 0;
+      const tick = () => {
+        const lv = steps[i];
+        const last = i === steps.length - 1;
+        const to = last ? (lv1.need ? (lv1.into / lv1.need) * 100 : 100) : 100;
+        fill.style.transition = 'width 0.7s cubic-bezier(.3,.7,.3,1)';
+        fill.style.width = `${to}%`;
+        setTimeout(() => {
+          if (last) return;
+          i++;
+          badge.textContent = String(steps[i]);
+          badge.classList.remove('pop');
+          void badge.offsetWidth;
+          badge.classList.add('pop');
+          try {
+            audio?.fx?.levelUp?.();
+          } catch {}
+          const r = got.rewards.find((x) => x.level === steps[i]);
+          if (r) {
+            const re = h('div', 'reward');
+            re.append(h('span', 'lvl', `Level ${r.level}`), h('span', 'what', r.label));
+            rw.append(re);
+          }
+          fill.style.transition = 'none';
+          fill.style.width = '0%';
+          void fill.offsetWidth;
+          setTimeout(tick, 60);
+        }, 760);
+      };
+      setTimeout(tick, 500);
+      return e;
     },
 
     // ------------------------------------------------------------ name tags (projected every frame)
