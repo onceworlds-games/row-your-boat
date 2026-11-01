@@ -1,0 +1,32 @@
+{
+  "slug": "row-your-boat",
+  "name": "Row Your Boat",
+  "description": "Row on the beat down a dream of a river. Fastest boat wins.",
+  "dir": "dist",
+  "productionBranch": "main",
+  "genre": "Racing",
+  "icon": "store/icon.png",
+  "thumbnails": ["store/thumb-1.png", "store/thumb-2.png", "store/thumb-3.png", "store/thumb-4.png"],
+  "badges": [
+    { "id": "first-stroke", "name": "First Stroke", "description": "Row a perfect stroke.", "icon": "store/badge-first-stroke.png" },
+    { "id": "merrily-x4", "name": "Merrily ×4", "description": "Light all four bow lanterns.", "icon": "store/badge-merrily-x4.png" },
+    { "id": "perfect-verse", "name": "Perfect Verse", "description": "Sixteen perfect strokes in a row.", "icon": "store/badge-perfect-verse.png" },
+    { "id": "gently", "name": "Gently Down the Stream", "description": "Finish a stream without a single bump.", "icon": "store/badge-gently.png" },
+    { "id": "first-win", "name": "First to the Lanterns", "description": "Win a race.", "icon": "store/badge-first-win.png" },
+    { "id": "photo-finish", "name": "Photo Finish", "description": "Win a race by under a tenth of a second.", "icon": "store/badge-photo-finish.png" },
+    { "id": "choir", "name": "Choir", "description": "Finish a race with three or more other people.", "icon": "store/badge-choir.png" },
+    { "id": "dreamer", "name": "Dreamer", "description": "Finish all eight streams of The Dream.", "icon": "store/badge-dreamer.png" },
+    { "id": "life-is-but-a-dream", "name": "Life Is But a Dream", "description": "Earn all 24 stars of The Dream.", "icon": "store/badge-life-is-but-a-dream.png" }
+  ],
+  "controls": [
+    { "keys": ["A", "←", "J"], "action": "Left oar: on the beat" },
+    { "keys": ["D", "→", "K"], "action": "Right oar: on the beat" },
+    { "keys": ["Tap left"], "action": "Left oar (left half of the screen)" },
+    { "keys": ["Tap right"], "action": "Right oar (right half of the screen)" },
+    { "keys": ["Both sides"], "action": "Together: a straight stroke" },
+    { "keys": ["Space", "Enter"], "action": "Row on the title, menus" },
+    { "keys": ["Esc", "P"], "action": "Pause The Dream" },
+    { "keys": ["R"], "action": "Row a Dream stream again" },
+    { "keys": ["Tap"], "action": "Watching: next boat" }
+  ]
+}
