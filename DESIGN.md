@@ -503,8 +503,9 @@ All synthesized in Web Audio, from one small sequencer in the song's key.
   bold symbol on a coloured disc for each (an oar, four lanterns, a note, a calm wave, a lantern arch, a camera shutter,
   three voices, a moon, a crescent of stars, droplets, a lily, a rock and a ripple, a "10", three wishes, a full moon).
 - **Trailer (`store/trailer.mp4`):** real play captured with `vcap` (virtual time, GPU Chrome, muted) from The Dream with
-  the autoplay (`?autoplay=1&dream=<n>&pilot=<0-1>`, local copies only): gold pulls, a merrily rush, moonblooms taken, the
-  dreams one after another, a win in slow motion, then "Row Your Boat" over the title's race for the last two seconds.
+  the autoplay (`?autoplay=1&dream=<n>&pilot=<0-1>`, local copies only), 25.6 s in five shots: the pack leaving
+  Clockwork's start arch and a merrily rush, the pack under Stars' shooting stars, Morning's daylight, Bedtime's lantern
+  arch with the win stamped in slow motion and the plaque's stars popping in, then "Row Your Boat" over the title's race.
   The Dream runs on the page's own clock, so virtual-time capture plays at true speed.
 
 ## Originality check
