@@ -17,7 +17,7 @@ export const SETTINGS = [
 ];
 export const JOIN = { maxPlayers: 6, minPlayers: 1, lobby: 'bar', countdown: 0, settings: SETTINGS };
 /** Bots in races: their skill range, and the range when a newcomer is in the race. */
-export const BOT_SKILL = [0.0, 0.6];
+export const BOT_SKILL = [0.3, 0.6];
 export const NEWBIE_SKILL = [-0.4, -0.1];
 
 const fin = (v) => typeof v === 'number' && Number.isFinite(v);

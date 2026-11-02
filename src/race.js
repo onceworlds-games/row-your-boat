@@ -4,7 +4,7 @@
 import { buildCourse } from './sim/course.js';
 import { makeSong } from './sim/song.js';
 import { createRacer, qualityCode, QUALITY_CODES } from './sim/racer.js';
-import { createBrain, botParams, habitOf } from './sim/bot.js';
+import { createBrain, botParams, habitOf, packForm } from './sim/bot.js';
 import { startSlot, order } from './sim/race.js';
 import { streamByN } from './sim/streams.js';
 import { twistDef } from './sim/tonight.js';
@@ -78,6 +78,31 @@ export function createRaceSim({ n = 1, seats, me = null, key = 'race', ease = 1,
     return out;
   };
 
+  /** The bots race as a pack around the leading player still rowing (around the middle of the field without one, or
+   * when that player has fallen far behind it). */
+  function pace() {
+    let ref = -Infinity;
+    const all = [];
+    const consider = (id, s, done) => {
+      if (done || !Number.isFinite(s)) return;
+      all.push(s);
+      if (!seatOf.get(id)?.bot) ref = Math.max(ref, s);
+    };
+    for (const [id, r] of racers) consider(id, r.boat.s, r.boat.finished);
+    for (const [id, v] of views) consider(id, v.s, v.f || v.away || v.left);
+    if (!all.length) return;
+    all.sort((a, b) => a - b);
+    const mid = all[Math.floor(all.length / 2)];
+    // a player far behind is out of this race's pack: from 30 m behind the middle of the field to 60 m, the bots turn
+    // to racing each other
+    if (!Number.isFinite(ref)) ref = mid;
+    else ref += (mid - ref) * Math.max(0, Math.min(1, (mid - ref - 30) / 30));
+    for (const [id, r] of racers) {
+      if (!r.brain || id === me || !seatOf.get(id)?.bot) continue;
+      r.brain.form = r.boat.finished ? 1 : packForm(r.boat.s - ref);
+    }
+  }
+
   const sim = {
     stream,
     course,
@@ -116,6 +141,7 @@ export function createRaceSim({ n = 1, seats, me = null, key = 'race', ease = 1,
     /** Step every simulated boat to song time t. Returns [{ id, ev }]. */
     step(t) {
       const out = [];
+      pace();
       for (const [id, r] of racers) {
         const evs = r.update(t, others(id, r.boat));
         for (const ev of evs) out.push({ id, ev });

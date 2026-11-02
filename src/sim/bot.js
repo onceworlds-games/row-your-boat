@@ -14,18 +14,27 @@ function beatAt(song, t) {
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+/**
+ * How far a rower is from sharp, for its timing and its slips: flat through the middle (rowers from 0.3 up race within
+ * a few seconds of each other), steep below it, and gentle again under 0 (newcomers' rivals).
+ */
+const loose = (k) => {
+  const u = Math.max(0, 1 - k);
+  return u <= 1 ? u * u * u : 1 + 0.4 * (u - 1);
+};
+
 /** A rower's numbers from a skill (0 clumsy - 1 sharp) and a habit (streams.js ROWERS). */
 export function botParams(skill, habit = {}) {
   const k = clamp(Number(skill) || 0, -0.6, 1);
   return {
     skill: k,
-    sigma: Math.max(0.01, 0.08 - 0.06 * k + (habit.sigma ?? 0)),
+    sigma: Math.max(0.01, 0.02 + 0.066 * loose(k) + (habit.sigma ?? 0)),
     bias: habit.bias ?? 0,
-    slip: Math.max(0.003, 0.08 - 0.07 * k + (habit.slip ?? 0)),
+    slip: Math.max(0.003, 0.006 + 0.08 * loose(k) + (habit.slip ?? 0)),
     sight: 18 + 12 * k + (habit.sight ?? 0),
     lead: 6 + 8 * k,
     short: habit.short === 'always' || (habit.short !== 'never' && k >= 0.55),
-    noise: (1 - k) * 6 * DEG,
+    noise: Math.pow(Math.max(0, 1 - k), 1.5) * 6 * DEG,
     overcorrect: habit.overcorrect ?? 0,
     streaky: !!habit.streaky,
     line: 0.35 * k,
@@ -37,6 +46,17 @@ export function botParams(skill, habit = {}) {
 }
 
 export const habitOf = (name) => ROWERS[String(name).split(' ')[0]] ?? {};
+
+/** Racing in a pack: past `free` metres from the reference boat (the leading player), a bot rows looser ahead of it and
+ * sharper behind it, a little more per metre, up to these limits. */
+export const PACK = { free: 10, ahead: 40, behind: 40, loose: 0.35, sharp: 0.35 };
+/** A bot's form (1 as it is; above 1 looser, below sharper) at `gap` metres ahead (+) or behind (-) the reference. */
+export function packForm(gap) {
+  if (!Number.isFinite(gap)) return 1;
+  if (gap > PACK.free) return 1 + Math.min(PACK.loose, (gap - PACK.free) / PACK.ahead);
+  if (gap < -PACK.free) return 1 - Math.min(PACK.sharp, (-gap - PACK.free) / PACK.behind);
+  return 1;
+}
 
 /**
  * A brain for one boat. `key` seeds its choices (the same on any page that runs it: match, round, seat). `plan(boat,
@@ -132,7 +152,8 @@ export function createBrain(course, params, key, song = null) {
 
   function plan(boat, beat, t) {
     const r = rng(`${key}:${beat.i}`);
-    let slip = P.slip;
+    const form = Number.isFinite(api.form) ? clamp(api.form, 0.5, 2) : 1;
+    let slip = P.slip * form;
     if (P.streaky && beat.i <= hotUntil) slip *= 3;
     if (boat.finished) slip = 0.5;
     let wrong = false;
@@ -167,15 +188,16 @@ export function createBrain(course, params, key, song = null) {
     else if (side === 0) side = cost(-lastSide) - cost(0) < 4 * DEG ? -lastSide : 0;
     if (wrong) side = side === 0 ? lastSide : -side;
     if (side !== 0) lastSide = side;
-    const offset = clamp(P.bias + r.normal() * P.sigma, -0.24, 0.24);
+    const offset = clamp(P.bias + r.normal() * P.sigma * form, -0.24, 0.24);
     const main = { t: beat.t + offset, side };
     if (!beat.rush || P.drops <= 0) return main;
     // The merrily droplets: both, on alternate oars (their small turns cancel), or neither
     if (!r.chance(P.drops)) return main;
     const ds = -(side || lastSide);
-    return [main, ...[1, 2].map((k) => ({ t: beat.t + (beat.dur * k) / 3 + clamp(r.normal() * P.sigma * 0.6, -0.1, 0.1), side: k === 1 ? ds : -ds }))];
+    return [main, ...[1, 2].map((k) => ({ t: beat.t + (beat.dur * k) / 3 + clamp(r.normal() * P.sigma * form * 0.6, -0.1, 0.1), side: k === 1 ? ds : -ds }))];
   }
 
-  const api = { plan, params: P, _last: null };
+  // form: set by the race each step (packForm), 1 when nobody sets it
+  const api = { plan, params: P, form: 1, _last: null };
   return api;
 }
