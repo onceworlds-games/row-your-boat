@@ -7,6 +7,7 @@ import { createRaceSim, courseOf } from './race.js';
 import { STREAMS, ROWER_NAMES, streamByN, cap } from './sim/streams.js';
 import { startSlot, clock as fmt, stars as starsOf, FINISH_WINDOW } from './sim/race.js';
 import { beatPos } from './sim/racer.js';
+import { SLOW, stepView } from './view.js';
 import { makeSong } from './sim/song.js';
 import { createScore } from './sim/score.js';
 import { wrap } from './sim/course.js';
@@ -38,8 +39,6 @@ const SWELL_GOLD = 1;
 const SWELL_DROP = 2;
 /** Seconds after crossing the line before the camera goes to watch the boats still rowing. */
 const WATCH_AFTER = 5;
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
 export function createGame({ ow, scene, ui, store, flags = {} }) {
   const avatars = createAvatars(ow);
@@ -207,6 +206,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     applyInsets();
     lobbyPresence();
     audio.setMusic(0.32);
+    audio.setWarp(1);
   }
 
   /** A match took this player in: whatever they were doing alone ends. */
@@ -498,6 +498,11 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       focusId = live[k] ?? order[0];
     }
     const focus = boats.find((b) => b.id === focusId) ?? boats[0];
+    // the view: the race as it is drawn and heard, a moment behind it after the player's finish (slow motion)
+    const view = viewStep(r, perf, dt, tv, boats);
+    const vt = view.vt;
+    const vRace = t - r.lag;
+    const vFocus = (focus && view.boats.find((b) => b.id === focus.id)) ?? focus;
     if (me && r.kind !== 'attract') {
       const place = order.indexOf(r.meId) + 1;
       if (r.place && place && phase === 'round' && t > 3 && r.myFin === null) {
@@ -521,21 +526,21 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const racing = me && r.myFin === null && phase === 'round' && !r.paused && r.kind !== 'attract';
     const rip = racing ? ripples(r, tv, meB) : null;
     // the song
-    if (r.kind !== 'attract') soundStep(r, t, phase, boats, focus, me);
+    if (r.kind !== 'attract') soundStep(r, t, phase, view.boats, vFocus, me, view);
     // first finisher: the arch's lanterns go out over the window
     const firstFin = Object.values(fin).filter(finite).reduce((a, b) => Math.min(a, b), Infinity);
     let finishLit = 9;
     let sign = '';
     if (isRoom && Number.isFinite(firstFin)) {
-      const left2 = firstFin + FINISH_WINDOW - t;
+      const left2 = firstFin + FINISH_WINDOW - vRace;
       finishLit = clamp(Math.ceil((left2 / FINISH_WINDOW) * 9), 0, 9);
       if (phase === 'round' && left2 > 0) sign = fmt(left2).replace(/\.\d$/, '');
     }
     const countLit = t < 0 ? r.song.count.filter((c, i) => i > 0 && c <= tv).length : 3;
     // HUD, tags
-    if (r.kind !== 'attract') hudStep(r, t, phase, boats, order, focus, perf);
+    if (r.kind !== 'attract') hudStep(r, t, phase, view.boats, order, vFocus, perf);
     if (me && r.myFin !== null) {
-      const small = t > r.myFin + WATCH_AFTER;
+      const small = vRace > r.myFin + WATCH_AFTER;
       if (r.stampSmall !== small) {
         r.stampSmall = small;
         ui.stampSmall(small);
@@ -544,35 +549,37 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     // the camera
     const portrait = H > W;
     let cam;
-    if (r.kind === 'attract') cam = { mode: 'title', portrait, boat: focus };
+    if (r.kind === 'attract') cam = { mode: 'title', portrait, boat: vFocus };
     else if (phase === 'results') cam = { mode: 'results', portrait };
-    else if (t < 0) cam = { mode: 'intro', k: (t + INTRO) / INTRO, portrait, boat: focus };
-    else if (me && r.myFin !== null && t > r.myFin + WATCH_AFTER && phase !== 'roundEnd' && chaser(boats, left)) {
+    else if (t < 0) cam = { mode: 'intro', k: (t + INTRO) / INTRO, portrait, boat: vFocus };
+    else if (me && r.myFin !== null && vRace > r.myFin + WATCH_AFTER && phase !== 'roundEnd' && chaser(view.boats, left)) {
       // over the line: after a moment, watch whoever is nearest the line still rowing
-      cam = { mode: 'spectate', portrait, boat: chaser(boats, left) };
-    } else if ((me && r.myFin !== null && t > r.myFin + 0.8) || phase === 'roundEnd') cam = { mode: 'finish', portrait, boat: focus };
-    else if (!me) cam = { mode: 'spectate', portrait, boat: focus };
-    else cam = { mode: 'race', portrait, boat: focus, push: me.judge.state.level >= 4 ? 1 : 0, beat: r.song.phase(Math.max(0, tv)).f };
-    const ph = r.song.phase(tv);
-    const pulse = tv < 0 || (ph.beat && !ph.beat.rest) ? Math.exp(-ph.f * 5) : 0;
-    r.calm += ((r.song.resting(tv) ? 1 : 0) - r.calm) * Math.min(1, dt * 2);
+      cam = { mode: 'spectate', portrait, boat: chaser(view.boats, left) };
+    } else if ((me && r.myFin !== null && vRace > r.myFin + 0.8) || phase === 'roundEnd') cam = { mode: 'finish', portrait, boat: vFocus };
+    else if (!me) cam = { mode: 'spectate', portrait, boat: vFocus };
+    else cam = { mode: 'race', portrait, boat: vFocus, push: me.judge.state.level >= 4 ? 1 : 0, beat: r.song.phase(Math.max(0, vt)).f };
+    const ph = r.song.phase(vt);
+    const pulse = vt < 0 || (ph.beat && !ph.beat.rest) ? Math.exp(-ph.f * 5) : 0;
+    r.calm += ((r.song.resting(vt) ? 1 : 0) - r.calm) * Math.min(1, dt * 2 * view.rate);
     let ghost = null;
     if (r.ghost) {
-      const g = ghostAt(r.ghost, Math.max(0, tv));
+      const g = ghostAt(r.ghost, Math.max(0, vt));
       if (g) ghost = { x: g.x, z: g.z, h: g.h };
     }
-    const drawn = boats.map((b) => ({ ...b, hidden: !!b.hidden }));
     return {
       now,
       dt,
-      t: tv,
-      B: beatPos(r.song, tv),
+      rate: view.rate,
+      // the title's race: calmer water (no trails, fewer wakes and rings) so the boats read
+      quiet: r.kind === 'attract',
+      t: vt,
+      B: beatPos(r.song, vt),
       pulse,
-      boats: drawn,
+      boats: view.boats,
       meId: r.meId,
-      focusId: focus?.id,
-      focusS: focus ? focus.s : r.course.start,
-      focus: focus ? { x: focus.x, z: focus.z } : null,
+      focusId: vFocus?.id,
+      focusS: vFocus ? vFocus.s : r.course.start,
+      focus: vFocus ? { x: vFocus.x, z: vFocus.z } : null,
       ripples: rip ? rip.list : [],
       oar: rip ? rip.oar : null,
       ghost,
@@ -582,6 +589,11 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       camera: cam,
       arch: { count: countLit, finishLit, sign },
     };
+  }
+
+  /** The view a frame (view.js): what is drawn and heard, slowed at the player's finish. */
+  function viewStep(r, perf, dt, tv, boats) {
+    return stepView(r, { perf, dt, tv, boats, paused: r.paused });
   }
 
   /** Finish times known on this page: the host's record, this page's own, the Dream's rivals. */
@@ -883,7 +895,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
 
   // ---------------------------------------------------------------- sound
 
-  function soundStep(r, t, phase, boats, focus, me) {
+  function soundStep(r, t, phase, boats, focus, me, view = null) {
     if (!audio.running()) return;
     const anchor = r.clock.ctxOf(0);
     if (phase === 'round' && !r.paused && anchor !== null) {
@@ -896,9 +908,13 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
         if (focus) pan = clamp(((b.x - focus.x) * Math.cos(focus.h) + (b.z - focus.z) * Math.sin(focus.h)) / 9, -0.8, 0.8);
         return { ...LAGS[i], timbre: VOICES[1 + i], vol: near * alive * (0.22 + 0.16 * (b.c | 0)), pan };
       });
-      audio.schedule({ key: r.key, song: r.song, anchor, tonic: r.stream.tonic, level: me ? me.judge.state.level : 2, voices });
-      audio.setMusic(0.5);
-    }
+      const lag = view ? r.lag : 0;
+      const rate = view ? view.rate : 1;
+      audio.schedule({ key: r.key, song: r.song, anchor, tonic: r.stream.tonic, level: me ? me.judge.state.level : 2, voices, lag, rate });
+      // under the finish's own tune, while the view is slow or catching up
+      audio.setMusic(lag > 0 || rate !== 1 ? 0.32 : 0.5);
+      audio.setWarp(rate);
+    } else audio.setWarp(1);
     const b = me?.boat ?? focus;
     audio.setBeds({ water: 0.8, rapids: b?.rapids ?? 0, whirl: b?.whirl ? 1 : 0, wake: b?.slip ? 1 : 0 });
     audio.ambience(r.calm > 0.5 ? 1 : 0.4);
@@ -1034,7 +1050,9 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     audio.fx.finish(r.stream.tonic, r.myPlace === 1);
     const a = r.course.point(r.course.finish, 0);
     scene.fx.finish(a.x, 3.5, a.z);
-    scene.slowmo(r.myPlace === 1 ? 1.4 : 0.7);
+    // slow motion: the boats, the water and the song slow down for the moment over the line
+    if (!scene.reduced) r.slow = { at: perf, secs: r.myPlace === 1 ? SLOW.win : SLOW.place };
+    scene.slowmo(r.myPlace === 1 ? SLOW.win : SLOW.place);
     scene.flash(r.myPlace === 1 ? '#FFE7A8' : '#FFFFFF', r.myPlace === 1 ? 0.28 : 0.12);
     scene.punch(r.myPlace === 1 ? 1 : 0.5);
     if (r.kind === 'room') {

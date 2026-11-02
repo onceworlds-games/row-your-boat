@@ -2,11 +2,12 @@
 
 export const THEMES = {
   bedtime: {
-    skyTop: '#070b24', skyMid: '#18225a', skyBot: '#34417e', fog: '#1a2352', fogD: 0.0105,
-    deep: '#0a1131', water: '#22367a', foam: '#dfe6ff',
-    bank: ['#4b3529', '#5e4332', '#3b2a22'], far: '#241a26',
-    moon: { dir: [-0.35, 0.42, -1], color: '#c3cdff', intensity: 1.35, size: 70 },
-    hemi: ['#4d5aa8', '#0b0b18', 0.75], lantern: '#FFB547', stars: 0.8,
+    // a night-light room: moody blue, but the floor, the toys and the boats read on a phone in daylight
+    skyTop: '#0b1232', skyMid: '#22306e', skyBot: '#46559c', fog: '#26326c', fogD: 0.0092, exposure: 0.92,
+    deep: '#0e1940', water: '#2c4592', foam: '#e4eaff',
+    bank: ['#5e4434', '#735441', '#4a3529'], far: '#33263a',
+    moon: { dir: [-0.35, 0.42, -1], color: '#c8d2ff', intensity: 1.75, size: 70 },
+    hemi: ['#6a78c8', '#1a1a34', 1.05], lantern: '#FFB547', stars: 0.8,
   },
   teatime: {
     skyTop: '#0b0d2c', skyMid: '#26265e', skyBot: '#5a3d6e', fog: '#2c2758', fogD: 0.0095,
@@ -30,11 +31,12 @@ export const THEMES = {
     hemi: ['#8f9ae0', '#2a2f5a', 0.95], lantern: '#FFB547', stars: 0.3,
   },
   library: {
-    skyTop: '#0c0a1e', skyMid: '#2a1d36', skyBot: '#4c2e3c', fog: '#2b1d30', fogD: 0.0115,
-    deep: '#0d0f2a', water: '#283670', foam: '#f3e6d6',
-    bank: ['#6a2f34', '#7d3a36', '#55252b'], far: '#25161f',
-    moon: { dir: [-0.3, 0.55, -1], color: '#ffd9a8', intensity: 1.0, size: 45 },
-    hemi: ['#7a5a8a', '#0e0808', 0.75], lantern: '#FFB547', stars: 0.35,
+    // lamplight between the shelves: warm and low, yet clear
+    skyTop: '#151030', skyMid: '#3a2a4c', skyBot: '#6a4452', fog: '#3c2a3c', fogD: 0.0102, exposure: 0.92,
+    deep: '#141838', water: '#33447e', foam: '#f6eadb',
+    bank: ['#86424a', '#9a5249', '#6c343a'], far: '#3a2430',
+    moon: { dir: [-0.3, 0.55, -1], color: '#ffdcb0', intensity: 1.5, size: 45 },
+    hemi: ['#9c7aaa', '#2a1818', 1.05], lantern: '#FFB547', stars: 0.35,
   },
   clockwork: {
     skyTop: '#080b22', skyMid: '#1e2148', skyBot: '#4a4258', fog: '#272848', fogD: 0.011,

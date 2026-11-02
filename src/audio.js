@@ -9,6 +9,8 @@ import { BEAT_NOTES } from './sim/song.js';
 let ctx = null;
 let master = null;
 let musicBus = null;
+let musicTone = null; // a lowpass after the music: closes in slow motion
+let warpRate = 1;
 let sfxBus = null;
 let noise = null;
 let failed = false;
@@ -48,7 +50,11 @@ function make() {
     master.connect(comp).connect(pre).connect(soft).connect(ctx.destination);
     musicBus = ctx.createGain();
     musicBus.gain.value = 0.5;
-    musicBus.connect(master);
+    musicTone = ctx.createBiquadFilter();
+    musicTone.type = 'lowpass';
+    musicTone.frequency.value = 18000;
+    musicTone.Q.value = 0.9;
+    musicBus.connect(musicTone).connect(master);
     sfxBus = ctx.createGain();
     sfxBus.gain.value = 0.9;
     sfxBus.connect(master);
@@ -237,20 +243,26 @@ let sched = { key: '', next: -99, anchor: null };
 /**
  * Schedule the song a little ahead: call every frame while a race (or the menu tune) plays. o: { key (a new key starts
  * over), song, anchor (context time of song 0), tonic (midi), level (1-4, the player's combo), voices: [{ lag (beats),
- * oct, vol, pan, timbre }], menu (the slow tune: the melody played by itself) }.
+ * oct, vol, pan, timbre }], menu (the slow tune: the melody played by itself), lag (seconds the song heard is behind the
+ * race: slow motion), rate (how fast it plays now: below 1 the beats and their notes spread out) }.
  */
 function schedule(o) {
   if (!running() || o.anchor === null || o.anchor === undefined) return;
   const ahead = ctx.currentTime + 0.18;
-  if (o.key !== sched.key || Math.abs((sched.anchor ?? o.anchor) - o.anchor) > 0.05) {
+  const rate = clamp(Number.isFinite(o.rate) ? o.rate : 1, 0.1, 3);
+  const anchor = o.anchor + (Number.isFinite(o.lag) ? o.lag : 0);
+  if (o.key !== sched.key || Math.abs((sched.anchor ?? anchor) - anchor) > 0.05) {
     // A new song, or a jump: start from the first beat still to come.
-    const now = ctx.currentTime - o.anchor;
+    const now = ctx.currentTime - anchor;
     let i = -o.song.count.length;
     if (now > 0) i = Math.max(0, o.song.indexAt(now) + 1);
     else while (i < 0 && o.song.count[o.song.count.length + i] < now) i++;
-    sched = { key: o.key, next: i, anchor: o.anchor };
+    sched = { key: o.key, next: i, anchor };
   }
-  sched.anchor = o.anchor;
+  sched.anchor = anchor;
+  // where the song is now, and how the beats still to come land at this rate
+  const songNow = ctx.currentTime - anchor;
+  const when = (bt) => (rate === 1 ? anchor + bt : ctx.currentTime + (bt - songNow) / rate);
   const song = o.song;
   let guard = 0;
   while (guard++ < 16) {
@@ -263,15 +275,15 @@ function schedule(o) {
       if (!beat) return;
       bt = beat.t;
     }
-    const t = o.anchor + bt;
+    const t = when(bt);
     if (t > ahead) return;
     sched.next++;
     if (t < ctx.currentTime - 0.03) continue;
-    playBeat(o, i, beat, t);
+    playBeat(o, i, beat, t, 1 / rate);
   }
 }
 
-function playBeat(o, i, beat, t) {
+function playBeat(o, i, beat, t, stretch = 1) {
   const tonic = o.tonic;
   const base = o.song.base;
   if (!beat) {
@@ -282,7 +294,7 @@ function playBeat(o, i, beat, t) {
     if (k > 0) bell(tonic + [0, 4, 7][k - 1] + 12, t, 0.16);
     return;
   }
-  const dur = beat.dur;
+  const dur = beat.dur * stretch;
   const eighth = dur / 3;
   if (beat.rest) {
     // A breath: a held chord and wind chimes.
@@ -557,7 +569,7 @@ function startBeds() {
       g.gain.value = 0;
       s.connect(fl).connect(g).connect(sfxBus);
       s.start();
-      beds[name] = { g, fl, level: 0 };
+      beds[name] = { g, fl, level: 0, src: s, rate };
     };
     mk('water', 'lowpass', 500, 0.6, 0.5);
     mk('rapids', 'bandpass', 900, 0.5);
@@ -594,6 +606,22 @@ function ambience(level = 1) {
   for (let k = 0; k < 3; k++) tone('sine', f, t + k * 0.06, { vol: 0.012 * level, decay: 0.03, pan, bus: sfxBus });
 }
 
+/**
+ * Slow motion in the sound (rate below 1): the music closes to a muffled glow and the water's noise slows and deepens;
+ * back to 1 they open again.
+ */
+function setWarp(rate) {
+  if (!running() || !musicTone) return;
+  const r = clamp(Number.isFinite(rate) ? rate : 1, 0.1, 3);
+  if (Math.abs(r - warpRate) < 0.01 && (r < 1 || warpRate === 1)) return;
+  warpRate = r >= 0.999 ? 1 : r;
+  const t = ctx.currentTime;
+  musicTone.frequency.setTargetAtTime(warpRate >= 1 ? 18000 : 400 + 6000 * warpRate * warpRate, t, 0.06);
+  for (const b of Object.values(beds)) {
+    if (b?.src) b.src.playbackRate.setTargetAtTime(b.rate * (0.35 + 0.65 * Math.min(1, warpRate)), t, 0.08);
+  }
+}
+
 function setMusic(level, ramp = 0.4) {
   if (!running()) return;
   musicBus.gain.setTargetAtTime(level, ctx.currentTime, ramp);
@@ -610,6 +638,7 @@ export const audio = {
   setBeds,
   ambience,
   setMusic,
+  setWarp,
   get ctx() {
     return ctx;
   },

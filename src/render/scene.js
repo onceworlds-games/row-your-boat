@@ -32,6 +32,7 @@ export function createScene(canvas, { poster = false } = {}) {
   let slowFor = 1;
   let lastNow = 0;
   let lastFocus = null;
+  let clock = null; // the world's own time: it runs slower in slow motion and stops in a hit-stop
 
   // ---------------------------------------------------------------- loading a stream
 
@@ -490,12 +491,15 @@ export function createScene(canvas, { poster = false } = {}) {
   function frame(f) {
     if (!cur) return;
     const { course, water, river, dream } = cur;
-    const now = f.now;
-    lastNow = now;
     let dt = Math.min(0.1, f.dt);
     hitstop = Math.max(0, hitstop - dt);
     slow = Math.max(0, slow - dt);
-    const fxDt = hitstop > 0 ? dt * 0.12 : slow > 0 ? dt * (0.25 + 0.75 * Math.pow(1 - slow / slowFor, 3)) : dt;
+    // how fast the world moves: the race's own view rate when it gives one (slow motion at a finish), else the scene's
+    const rate = Number.isFinite(f.rate) ? Math.max(0, f.rate) : slow > 0 ? 0.25 + 0.75 * Math.pow(1 - slow / slowFor, 3) : 1;
+    const fxDt = hitstop > 0 ? dt * 0.12 : dt * rate;
+    clock = clock === null || !Number.isFinite(clock) ? f.now : clock + fxDt;
+    const now = clock;
+    lastNow = now;
     // boats
     const wakes = [];
     let focus = null;
@@ -537,7 +541,7 @@ export function createScene(canvas, { poster = false } = {}) {
             m.oarTip(side, strokeV);
             fx.oar(strokeV.x, strokeV.z, kind, fxx, fzz, mine);
             const ring = !mine ? RING.splash : kind === 'pull' || (b.ls === 0 && (kind === 'perfect' || kind === 'good')) ? RING.pull : kind === 'perfect' ? RING.perfect : kind === 'good' || kind === 'drop' ? RING.good : RING.splash;
-            water.ring(strokeV.x, strokeV.z, now, ring);
+            if (!f.quiet || b.id === f.focusId) water.ring(strokeV.x, strokeV.z, now, ring);
           }
           if (kind === 'pull') fx.pull(b.x, b.z, fxx, fzz);
         }
@@ -562,10 +566,10 @@ export function createScene(canvas, { poster = false } = {}) {
           water.ring(p.x, p.z, now + 0.12, RING.splash);
         }
       } else m.takeDrips();
-      if (!b.hidden) wakes.push({ x: b.x, z: b.z, h: b.h, v: b.away ? 0 : Math.max(b.v, 0.5) });
+      if (!b.hidden) wakes.push({ x: b.x, z: b.z, h: b.h, v: b.away ? 0 : Math.max(b.v, 0.5) * (f.quiet ? 0.6 : 1) });
       if (b.id === f.focusId) focus = b;
       if (Math.abs(b.s - (f.focusS ?? b.s)) < 30 && !b.away) {
-        fx.wake(b.x, b.z, Math.sin(b.h), -Math.cos(b.h), b.v, b.slip, mine || Math.random() < 0.5 ? m.look.wake : null);
+        fx.wake(b.x, b.z, Math.sin(b.h), -Math.cos(b.h), b.v, b.slip, f.quiet ? null : mine || Math.random() < 0.5 ? m.look.wake : null);
         if ((b.rapids ?? 0) > 0.5) fx.foam(b.x, b.z, 0.5);
       }
     }
@@ -576,7 +580,7 @@ export function createScene(canvas, { poster = false } = {}) {
       ghost.group.rotation.y = -f.ghost.h;
       ghost.update(dt, now, {});
     } else if (ghost) ghost.group.visible = false;
-    water.setBoats(wakes.sort((a, b) => dist2(a, f.focus) - dist2(b, f.focus)).slice(0, 6));
+    water.setBoats(wakes.sort((a, b) => dist2(a, f.focus) - dist2(b, f.focus)).slice(0, f.quiet ? 3 : 6));
     // the water
     water.uniforms.uTime.value = now;
     water.setMirror(world.mirror);
@@ -716,6 +720,9 @@ export function createScene(canvas, { poster = false } = {}) {
       if (!reduced) camState.punch = Math.min(1.2, camState.punch + amount);
     },
     /** Slow motion for a moment (the finish): the sparks hang and the camera drifts in close. */
+    get reduced() {
+      return reduced;
+    },
     slowmo(secs = 1.2) {
       if (reduced) return;
       slow = Math.max(slow, secs);

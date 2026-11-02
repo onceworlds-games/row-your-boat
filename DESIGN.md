@@ -324,9 +324,14 @@ walnut shell).
 
 Bot brain (pure module, also the autoplay for the trailer): each beat it picks a side from the heading error to a racing
 line 1.5 + 2·skill beats ahead (double stroke if the error > 6°), dodges obstacles it sees within 18 + 12·skill m, takes
-short lines when skill ≥ 0.55, and taps with a timing error drawn from N(bias, σ), σ = 80 − 60·skill ms. It slips (a
-miss or a wrong side) with chance 8% − 7%·skill per beat. It pulls on gold beats, taps droplets and steers for
-moonblooms as its skill allows. Its strokes go through the same judge and physics as a player's.
+short lines when skill ≥ 0.55, and taps with a timing error drawn from N(bias, σ), σ = 20 + 66·(1 − skill)³ ms (flat
+through the middle, steep below 0.3, gentle again below 0). It slips (a miss or a wrong side) with chance
+0.6% + 8%·(1 − skill)³ per beat. It pulls on gold beats, taps droplets and steers for moonblooms as its skill allows.
+Its strokes go through the same judge and physics as a player's. **The pack** (`packForm`, race.js): each step a bot
+more than 10 m ahead of the leading player still rowing rows looser (σ and slips up to ×1.35 at 50 m), one more than
+10 m behind rows sharper (down to ×0.65); a player 30-60 m behind the middle of the field hands the reference over to
+it, so the bots race each other. Room bots are skill 0.3-0.6 and the Dream's rivals sit in narrow ranges per dream:
+in simulated rooms the first four finish within about 5 s, a mid player places anywhere, a sharp one wins most.
 
 ## Balance and timing (the numbers, and how they're checked)
 
@@ -409,8 +414,10 @@ All screens are the 3D world with type over it; panels are solid ink bands or wo
   boat's symbol at its distance (yours bigger). In the world: the bow lanterns (combo), the ripples (beat), the oar line,
   judgement words ("perfect", "good", "splash") rising small and quick from the oar that stroked. After the first finisher:
   the finish arch's lanterns go out one by one over the last 30 s, and a "0:24" on the arch. Hints centre, at ~38% height.
-- **Finish:** crossing the arch: a burst of paper lanterns and sparks, a bell chord, a flash and a push-in, slow motion
-  for 1.4 s on a win (0.7 s otherwise; sparks and spray hang, the camera drifts; not in reduced motion), your place
+- **Finish:** crossing the arch: a burst of paper lanterns and sparks, a bell chord, a flash and a push-in, real slow
+  motion for 1.8 s on a win (0.9 s otherwise; not in reduced motion): the view (view.js) runs at 0.22× (boats drawn
+  from a 4 s record of the race, the water, sparks and rowers on the scene's own clock, the song's beats spread out
+  under a closing lowpass, the water's noise slowed), eases back, then catches up at up to 1.25×. Your place
   stamped big ("2nd"). The camera circles your boat, then after 5 s the stamp shrinks to the top and the camera watches
   whoever is nearest the line still rowing, one boat after another.
 - **Between streams (cup, 6 s):** the finish pool; a ranking band (solid ink): place numeral, avatar head, name, time or
@@ -503,7 +510,8 @@ All synthesized in Web Audio, from one small sequencer in the song's key.
   bold symbol on a coloured disc for each (an oar, four lanterns, a note, a calm wave, a lantern arch, a camera shutter,
   three voices, a moon, a crescent of stars, droplets, a lily, a rock and a ripple, a "10", three wishes, a full moon).
 - **Trailer (`store/trailer.mp4`):** real play captured with `vcap` (virtual time, GPU Chrome, muted) from The Dream with
-  the autoplay (`?autoplay=1&dream=<n>&pilot=<0-1>`, local copies only), 25.6 s in five shots: the pack leaving
+  the autoplay (`?autoplay=1&dream=<n>&pilot=<0-1>`, local copies only), 25.6 s in five shots over one continuous bed
+  (Bedtime's own sound from 16 s before its finish, so the finish and the plaque are heard as they happen): the pack leaving
   Clockwork's start arch and a merrily rush, the pack under Stars' shooting stars, Morning's daylight, Bedtime's lantern
   arch with the win stamped in slow motion and the plaque's stars popping in, then "Row Your Boat" over the title's race.
   The Dream runs on the page's own clock, so virtual-time capture plays at true speed.
