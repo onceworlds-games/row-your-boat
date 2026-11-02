@@ -531,6 +531,11 @@ All synthesized in Web Audio, from one small sequencer in the song's key.
   the whole frame). The page joins its room and lets the SDK finish its handshake before it builds the world; meanwhile
   the title's name shows on the night colour (no Ready strip) and the world fades in after its first frame. Frames take
   their time from `performance.now()`, the clock input events and the audio are mapped to.
+- **No GPU (software WebGL):** every shader compiles and every pixel shades on the CPU, and a page busy linking shaders
+  stops answering the platform. There the river draws its lightest: low quality at half resolution, no multisampling,
+  one lantern light (no pool or stern lamp), no sky reflections (environment map). A new dream's shaders compile before
+  it is drawn: in the background where the browser can (`KHR_parallel_shader_compile`), otherwise a few each frame, the
+  last picture staying up meanwhile. `?lite` shows that path on a machine with a GPU.
 - **Loud moments:** a compressor and then a soft clip (tanh) on the master, so a finish over a full round never clips.
 - **iOS audio:** the Row tap unlocks audio; after a match started from the platform strip, a "Tap to row" hint stays until
   the first tap in the game (that tap is also the first stroke).
