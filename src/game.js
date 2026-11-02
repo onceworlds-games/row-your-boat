@@ -39,6 +39,8 @@ const SWELL_GOLD = 1;
 const SWELL_DROP = 2;
 /** Seconds after crossing the line before the camera goes to watch the boats still rowing. */
 const WATCH_AFTER = 5;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
 export function createGame({ ow, scene, ui, store, flags = {} }) {
   const avatars = createAvatars(ow);
