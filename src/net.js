@@ -9,13 +9,15 @@ import { CUP_POINTS, outcome, plausibleFinish, raceOver } from './sim/race.js';
 import { courseOf } from './race.js';
 import { KINDS, MAX_LEVEL } from './progress.js';
 
-/** The count-in before the first beat of every stream (seconds). */
+/** The count-in before the first beat of a Dream stream, or of a cup's next stream (seconds). */
 export const INTRO = 4;
+/** A room race's first stream: the platform's 3-2-1 was the countdown, so only a breath (a bell) before the first beat (seconds). */
+export const ROOM_LEAD = 1;
 export const SETTINGS = [
   { id: 'stream', label: 'Stream', options: STREAMS.map((s) => ({ value: s.n, label: s.name })), default: 1 },
   { id: 'race', label: 'Race', options: [{ value: 1, label: 'One stream' }, { value: 3, label: 'Cup of three' }], default: 1 },
 ];
-export const JOIN = { maxPlayers: 6, minPlayers: 1, lobby: 'bar', countdown: 0, settings: SETTINGS };
+export const JOIN = { maxPlayers: 6, minPlayers: 1, lobby: 'bar', settings: SETTINGS };
 /** Bots in races: their skill range, and the range when a newcomer is in the race. */
 export const BOT_SKILL = [0.3, 0.6];
 export const NEWBIE_SKILL = [-0.4, -0.1];
@@ -113,7 +115,7 @@ export function createNet(room, hooks = {}) {
     rounds: 'race',
     introSeconds: 0,
     roundEndSeconds: 6,
-    resultsSeconds: room.kind === 'private' ? 0 : 14,
+    resultsSeconds: 10,
     points: CUP_POINTS,
     admit: 'round',
     startRound(m) {
@@ -124,7 +126,7 @@ export function createNet(room, hooks = {}) {
       const lift = newbie ? 0 : botLift(Math.max(1, ...humans.map((x) => x.lv)));
       const bs = {};
       for (const s of m.seats) if (s.bot) bs[s.id] = Math.round((easedSkill(s.skill, newbie) + lift) * 100) / 100;
-      return { n, t0: room.matchNow() + INTRO * 1000, slots: slotsFor(m.seats.map((s) => s.id), m.random(`slots:${m.roundId}`)), fin: {}, nb: newbie ? 1 : 0, bs };
+      return { n, t0: room.matchNow() + (m.round > 1 ? INTRO : ROOM_LEAD) * 1000, slots: slotsFor(m.seats.map((s) => s.id), m.random(`slots:${m.roundId}`)), fin: {}, nb: newbie ? 1 : 0, bs };
     },
     onTick(m) {
       const d = cleanRound(m.data);

@@ -3,7 +3,7 @@
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createLocalServer } from './fake-room.mjs';
-import { createNet, cleanBoat, cleanExtras, cleanRound, easedSkill, botLift, BOT_LIFT, streamForRound, INTRO, BOT_SKILL, NEWBIE_SKILL } from '../src/net.js';
+import { createNet, cleanBoat, cleanExtras, cleanRound, easedSkill, botLift, BOT_LIFT, streamForRound, ROOM_LEAD, BOT_SKILL, NEWBIE_SKILL } from '../src/net.js';
 import { courseOf } from '../src/race.js';
 import { streamByN, cap } from '../src/sim/streams.js';
 
@@ -25,7 +25,7 @@ function teardown(...nets) {
   mock.timers.reset();
 }
 
-test('a solo race: one stream, five rival rowers, the count-in on the match clock', async () => {
+test('a solo race: one stream, five rival rowers, the first beat a breath after the match starts', async () => {
   const srv = setup('solo');
   const a = srv.join('a', 'Ann');
   const net = createNet(a);
@@ -41,9 +41,9 @@ test('a solo race: one stream, five rival rowers, the count-in on the match cloc
   assert.equal(seats.filter((s) => s.bot).length, 5);
   assert.deepEqual(Object.values(d.slots).sort(), [0, 1, 2, 3, 4, 5]);
   for (const s of seats.filter((x) => x.bot)) assert.ok(d.bs[s.id] >= BOT_SKILL[0] && d.bs[s.id] <= BOT_SKILL[1], `bot skill ${d.bs[s.id]}`);
-  // the first beat comes INTRO seconds after the round began
+  // the platform's 3-2-1 was the countdown: the first beat comes ROOM_LEAD seconds after the round began
   const songT = net.songTime();
-  assert.ok(songT > -INTRO && songT < -INTRO + 2, `song time ${songT}`);
+  assert.ok(songT > -ROOM_LEAD && songT < -ROOM_LEAD + 2, `song time ${songT}`);
   teardown(net);
 });
 
@@ -155,7 +155,7 @@ test('a latecomer watches this stream and rows the next one of the cup', async (
   assert.ok(!na.match.seats.some((s) => s.id === 'c'), 'not in this round');
   assert.equal(nc.match.me, null);
   // nobody finishes: the stream closes at its time cap, then the next stream starts with Cy in it
-  await advance((cap(streamByN(1)) + INTRO + 8) * 1000, 250);
+  await advance((cap(streamByN(1)) + ROOM_LEAD + 8) * 1000, 250);
   assert.equal(na.match.round, 2);
   assert.ok(na.match.seats.some((s) => s.id === 'c'), 'in the next round');
   assert.equal(na.round.n, streamForRound(1, 2));

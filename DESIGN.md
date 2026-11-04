@@ -33,7 +33,7 @@ at the end of the river.
 | Droplets (the merrily bar) | either oar between the beats | either side between the beats |
 | Pause (The Dream only) | Esc, P | the pause sign (top right) |
 | Row it again (The Dream only) | R | the pause sign's Again |
-| Menus | click, Enter, Space | tap |
+| Menus | click, Space (Enter is the platform's Ready key) | tap |
 
 - **Every beat, one stroke.** A stroke on the left oar swings the bow left; on the right, right. So alternating left,
   right, left, right rows straight (the boat wiggles gently), two in a row on one side turn that way, and both oars at
@@ -47,11 +47,11 @@ at the end of the river.
 
 | Time | Screen | Hint (2-5 words, once) |
 |---|---|---|
-| 0 s | "Row Your Boat" shows on the night colour at once; the world fades in behind it as soon as it's built (~2 s on a phone): a low camera glides over the night river; six bot boats row in time toward us, lanterns swinging, mist, the moon. "Row Your Boat" in big cream Fraunces, its reflection rippling on the water below it. One oar-blade button: **Row** (Space). | none |
-| 3 s | Tap Row: the AudioContext starts, the music box plays the tune softly on the beat; the camera cuts to **the Dock** at the start line: your boat in its berth just right of the middle, your rower dressed from your avatar's colours, your name on a tag. Empty berths on a private server show a "+" (invite). The signpost reads "Bedtime". The platform's Ready strip is at the bottom. | none |
-| 5 s | Tap Ready. Alone in a public server, the room starts the match at once (min 1 player; bots fill to six boats). | none |
-| 5-9 s | **Intro (4 s):** camera swings behind your boat inside a giant moonlit bedroom; the river pours from an open wardrobe. Five rivals slide into the start line beside you, each with a name tag and a hat. The start arch's three lanterns light on the count-in beats: tock, tock, tock, and the ripples start rolling in. | "Tap when it reaches you" (an arrow from the first ripple to the oars) |
-| 9 s | First beat. The player taps: a clean splash, the music box sings "Row" from your stroke, the boat lunges forward. | "Left · right · left · right" (both oar blades glow alternately) |
+| 0 s | "Row Your Boat" shows on the night colour while the world is built (~2 s on a phone). There is no Play button: the game joins its room as it loads. | none |
+| 2 s | **The Dock** at the start line: your boat in its berth just right of the middle, your rower dressed from your avatar's colours, your name on a tag. Empty berths on a private server show a "+" (invite). The signpost reads "Bedtime". The platform's Ready strip is at the bottom. | none |
+| 4 s | Tap Ready (Enter works too). Alone in a public server, the platform's 3-2-1 runs (min 1 player; bots fill to six boats). | none |
+| 7 s | The match: right behind your boat at the start arch, inside a giant moonlit bedroom, five rivals beside you. One bell, and the ripples are already rolling in. | "Tap when it reaches you" |
+| 8 s | First beat. The player taps: a clean splash, the music box sings "Row" from your stroke, the boat lunges forward. | "Left · right · left · right" (both oar blades glow alternately) |
 | 12 s | Four good strokes: the second bow lantern lights with a soft whoomp and a harp run; the boat is visibly quicker. | "Merrily ×2" painted on the lantern |
 | 15-25 s | The first gentle bend: alternating, the current carries the boat round. A toy block sits ahead, lit by your bow lantern's beam. If the player drifts at it: the right oar blade glows. | "Right, right: turn right" (only if heading toward a bank or obstacle for 1 s) |
 | 25 s | A mistimed tap: dull plunk, spray, the lanterns snuff out, the boat stalls. After three in a row: | "Wait for the ripple" |
@@ -176,27 +176,27 @@ A player alone gets the whole game two ways, both from the Dock:
   restarts in under a second. Rival skill per stream rises from −0.3 to −0.05 (Bedtime: a beginner at ×2 wins) to 0.82-0.95
   (Morning: needs ×4 most of the way).
 - How long it lasts: one pass is ~15 minutes, all 24 stars a few hours, and the per-stream leaderboards are open-ended.
-- The Dream is a solo activity in the lobby: `room.hideLobby()` while it runs. It ends if a match starts with this player
-  in it. In a private server where others are waiting, the host's moon button is dimmed ("Your crew is waiting").
+- The Dream is a solo activity in the lobby, with the platform's Ready strip still up (its layout keeps clear of it). It ends
+  if a match starts with this player in it. In a private server where others are waiting, the host's moon button is dimmed ("Your crew is waiting").
 
 ## Multiplayer
 
-- **Public game**, `ow.rooms.join({ maxPlayers: 6, minPlayers: 1, lobby: 'bar', countdown: 0, settings })`. Friends get
+- **Public game**, `ow.rooms.join({ maxPlayers: 6, minPlayers: 1, lobby: 'bar', settings })`. Friends get
   private servers from the platform. The game joins once, on load, before the scene is built.
 - **Settings** (the host's, drawn by the game on the Dock's signpost, `room.setSetting`):
   - `stream`: the eight streams (default Bedtime).
   - `race`: One stream / Cup of three (default One). A cup races the chosen stream and the next two.
-- **Lobby (the Dock):** drawn by the game: six berths with each player's boat and rower, name and a lantern that lights when
-  they're ready (lit lantern with a check vs a dark one: shape, not only colour), a host's crown on the post. The platform's
-  Ready strip is the ready/start control: public servers start on the room's own countdown once everyone has readied; private
+- **Lobby (the Dock):** drawn by the game: six berths with each player's boat and rower, and name, a host's crown on the post. The platform's
+  Ready strip is the only ready/start control and the only list of who's ready: public servers start on the room's own countdown once everyone has readied; private
   servers wait for the host's Start (`room.canStart`). Joining never starts anything. Empty berths offer `ow.ui.showInvite()`.
 - **Bots** fill to six boats when a match starts (`createBots(match, { host, fill: 6, names, skill: [0, 0.6] })`),
   players first. They're the six named rowers below, never marked "bot". When a newcomer (no finished race yet) is in the
   round, the host maps every bot's skill into −0.4 to −0.1 for that round and writes it in the round record.
 - **Match flow** (`createMatch`): `rounds: 'race'` (1 or 3), `introSeconds: 0`, round = one stream whose record sets the
-  first beat 4 s after the round starts (`t0`): those 4 s are the count-in at the start arch, the only countdown.
-  `roundEndSeconds: 6` (the stream's finish order, times and points), results (podium), then the Dock. Cup points by place: **10, 7, 5, 3, 2, 1**; ties share. Results stay 14 s in a public server; in a private
-  server until the host taps "To the dock" (it calls `endMatch()`).
+  first beat 1 s after the first round starts (`t0`): the platform's 3-2-1 is the only countdown, and at its end the player is
+  already at the oars. A cup's later streams, with no countdown before them, get the arch's 4 s count-in (no numerals).
+  `roundEndSeconds: 6` (the stream's finish order, times and points), results (podium), then the Dock. Cup points by place: **10, 7, 5, 3, 2, 1**; ties share. Results stay 10 s on every server, nothing to press; then
+  `endMatch()` and the Dock with the Ready strip.
 - **Round end:** when every boat still racing has finished, or **30 s after the first finisher**, or at a cap of the
   stream's par × 2.2 (par = length / 6.5 m/s). Unfinished boats place by distance.
 - **Latecomers** watch from the bank: a spectator camera follows the leader, tapping left/right cycles boats ("◀ Wren ▶"),
@@ -273,8 +273,7 @@ and fills the level bar, level by level.
   every beat gold; In bloom: twice the moonblooms), the same for everyone (the night comes from `ow.now()`, turning at
   midnight UTC). The streams come round in a fixed order and the twists shift each round: never the same stream or twist
   two nights running, every pairing within 32 nights. The card shows tonight's best runs (`tonight-runs`, a daily list)
-  and how many blooms everyone has gathered tonight (`tonight-blooms`, a daily counter). The title's attract race rows
-  tonight's stream, so the first thing seen changes every night.
+  and how many blooms everyone has gathered tonight (`tonight-blooms`, a daily counter). 
 - **Three wishes a night:** small goals drawn from the night (40-90 perfects, 6-16 pulls, 20-50 blooms, 2-6 shaves, 1-3
   rushes, races, wins, a clean run, tonight's stream), 100 XP and 25 blooms each, 50 more for all three.
 - **The moon calendar:** each night you row lights the next phase (10 + 5 blooms a night, rising); seven nights running
@@ -384,12 +383,9 @@ Node tests (`node --test`) check them through the pure modules:
 
 All screens are the 3D world with type over it; panels are solid ink bands or wooden signs, never glassy cards.
 
-- **Title:** attract mode (six rival rowers racing tonight's stream, the camera gliding a little ahead of the leading
-  group and to one side, the boats right of the middle so the name has the left; higher on a tall screen). Centre-left (near the top on a phone held upright): "Row Your Boat",
-  huge, cream Fraunces, its reflection rippling under it. Below it: the **Row** button (an oar blade pointing right,
-  56 px+ tall, `Space` key cap). Your best Dream stars (e.g. "★ 7") small under it once you have any. Nothing else.
+- **Title:** none to press. "Row Your Boat" in huge cream Fraunces, its reflection under it, on the night colour while the world loads; then the Dock.
 - **Dock (lobby):** the boats wait abreast at the start line under the start arch, six berths. Each berth: the boat,
-  the rower (avatar colours, chosen hat), a tag with the name (DM Sans bold, cream on ink), a ready mark, the host's crown
+  the rower (avatar colours, chosen hat), a tag with the name (DM Sans bold, cream on ink), the host's crown
   on private servers. Your boat takes the berth just right of the middle; empty berths on a private server show a "+"
   (invite). Left of the berths, **the signpost**: "Bedtime ‹ ›" and "One stream / Cup of three" (host taps to change;
   others see the values), with your best time on that stream. Top left, under the platform's buttons: **the plaque**
@@ -397,9 +393,8 @@ All screens are the 3D world with type over it; panels are solid ink bands or wo
   until you row tonight's stream), **The Dream** (the moon) and **Timing** (the tuning fork); a column on a phone held
   upright. Bottom: the platform's Ready strip (kept
   clear). Portrait: the signpost across the top under the platform menu, the boats below. Watchers of a running race see
-  that race instead, labelled "Watching · next race soon". On a page running outside the platform (a solo room), the
-  Dock has its own **Race** button, since there is no Ready strip.
-- **Intro (4 s):** behind your boat at the start arch; the stream's name painted across the water in Fraunces ("Teatime")
+  that race instead, labelled "Watching · next race soon". Every screen of the lobby keeps the strip clear.
+- **Intro (the Dream and a cup's later streams, 4 s):** behind your boat at the start arch; the stream's name painted across the water in Fraunces ("Teatime")
   and, in a cup, "Stream 2 of 3"; the arch's three lanterns light on the count-in.
 - **Boathouse:** the camera swings to your boat's stern quarter at its berth; a wooden panel (a bottom sheet on a phone)
   with tabs (Boat, Hat, Lantern, Trim, Wake), tiles with a swatch, the price in blooms or the level that brings it, a
@@ -425,8 +420,7 @@ All screens are the 3D world with type over it; panels are solid ink bands or wo
 - **Results (podium):** a round raft past the finish with a velvet top and a brass-studded rim, three stacks of quilted
   pillows (3, 2 and 1 high, gold numerals on the front), the top three rowers standing tall on them, a half-ring of lit
   paper lanterns behind and the light pool hung over the stacks, paper-star confetti; the camera frames it in the top of
-  the screen; below, the full ranking band; your line: place, time, "New best!", rhythm %. Private
-  host: "To the dock". Badges are the platform's notices.
+  the screen; below, the full ranking band; your line: place, time, "New best!", rhythm %. Badges are the platform's notices.
 - **The Dream chart:** the night sky as a winding river of stars from bottom to top; eight moon-phase nodes, each with the
   stream's name, three star slots (a moonbloom after them when every bloom was taken in one run), your best time; locked ones dim with a padlock shape. Tap a node: a wooden sign with the
   stream's name, best, the stream's top 3 from its leaderboard, and **Row**. Back (top right).
@@ -538,7 +532,7 @@ All synthesized in Web Audio, from one small sequencer in the song's key.
   ratio from `ow.settings.pixelRatio(2)`, pause when hidden. Quality: low = no shadows; medium = 1024 shadows; high = 2048
   shadows + bloom, with a pass before the bloom that keeps every pixel finite (one bad pixel would otherwise smear over
   the whole frame). The page joins its room and lets the SDK finish its handshake before it builds the world; meanwhile
-  the title's name shows on the night colour (no Ready strip) and the world fades in after its first frame. Frames take
+  the title's name shows on the night colour and the world fades in after its first frame. Frames take
   their time from `performance.now()`, the clock input events and the audio are mapped to.
 - **No GPU (software WebGL):** every shader compiles and every pixel shades on the CPU, and a page busy linking shaders
   stops answering the platform. There the river draws its lightest: low quality at half resolution, no multisampling,
@@ -584,7 +578,7 @@ All synthesized in Web Audio, from one small sequencer in the song's key.
 - **Stream lengths** 440-820 m (not 600-1,400) so races take 60-120 s at the spec's speeds.
 - **Added:** slipstream (+6%) so the boat behind can catch up; both-oar chords count as a straight stroke.
 - **Badges:** Choir is "three or more other people" (bots always fill six boats); added First to the Lanterns.
-- **Countdown:** the game's own 4 s count-in at the start arch (`countdown: 0`, the round record's `t0`), so there is one.
+- **Countdown:** the platform's 3-2-1, the only one; the round record's `t0` puts the first beat a breath after it.
 - **Bumps cost a lantern** for bots and players alike (the judge drops one level on a bump).
 - **A stern lamp** (a small warm light behind the boat) lights the rower and the hull from the camera's side.
 - **The Dock's berths:** your boat takes the berth just right of the middle (the signpost stands on the left of the

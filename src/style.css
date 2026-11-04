@@ -158,12 +158,6 @@ button:focus-visible {
   }
 }
 
-.title .stars {
-  font: 700 18px var(--sans);
-  color: var(--amber);
-  margin-top: 10px;
-}
-
 /* the oar-blade button */
 .oar {
   position: relative;
@@ -928,16 +922,6 @@ button:focus-visible {
 
 .oarhint.glow path.blade {
   fill: var(--amber);
-}
-
-.tapgo {
-  position: absolute;
-  left: 50%;
-  bottom: 22%;
-  transform: translateX(-50%);
-  font-size: clamp(28px, 5vw, 44px);
-  white-space: nowrap;
-  animation: pulse 1s ease-in-out infinite;
 }
 
 @keyframes pulse {
@@ -1832,13 +1816,6 @@ button:focus-visible {
   transform: translateX(-50%);
   font-size: clamp(22px, 3.2vw, 30px);
   white-space: nowrap;
-}
-
-.startbox {
-  position: absolute;
-  left: 50%;
-  bottom: calc(26px + var(--safe-bottom));
-  transform: translateX(-50%);
 }
 
 .closed {

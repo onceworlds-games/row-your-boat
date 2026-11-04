@@ -41,7 +41,7 @@ function flagsOf() {
   const pilot = Number(q.get('pilot'));
   return {
     autoplay: q.has('autoplay') && q.get('autoplay') !== '0',
-    autoplayTo: to === 'title' || to === 'lobby' ? to : null,
+    autoplayTo: to === 'title' || to === 'lobby' ? to : null, // the Dock is the first screen: both stop there
     pilot: Number.isFinite(pilot) && q.has('pilot') ? Math.max(0, Math.min(1, pilot)) : 0.92,
     stream: int('stream', 1, 8),
     race: int('race', 1, 3) === 3 ? 3 : null,
@@ -82,11 +82,7 @@ async function boot() {
   ui.title(true);
   // Building the world blocks the page for a moment (seconds on a slow phone): let the SDK finish its handshake with the
   // platform and the room answer first, or a slow page can miss the handshake and play alone.
-  const early = await Promise.race([joining, new Promise((r) => setTimeout(() => r(null), 6000))]);
-  // the title has no Ready strip, not even while the world is still being built
-  try {
-    early?.hideLobby();
-  } catch {}
+  await Promise.race([joining, new Promise((r) => setTimeout(r, 6000))]);
   try {
     ow.ui.setLook({ accent: '#FFB547', panel: '#141A3A', text: '#F4EBD0' });
   } catch {}
@@ -121,7 +117,7 @@ async function boot() {
     if (document.hidden) game.pause();
   });
 
-  // The world paints at once; the title's button waits for the save (the profile).
+  // The world paints at once; the Dock waits for the save (the profile).
   let drawn = false;
   // the frame's time from performance.now() (the clock input events and the audio are mapped to), not the rAF argument
   const loop = () => {

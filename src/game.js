@@ -1,10 +1,10 @@
-// The game on one page: the title, the Dock (lobby), room races, watching, The Dream, the timing test. It reads the room
+// The game on one page: the Dock (lobby), room races, watching, The Dream, the timing test. It reads the room
 // and the match, runs the race simulation on the song clock, takes input, and hands the scene one plain frame a frame.
 
 import { audio, VOICES } from './audio.js';
 import { createSongClock } from './clock.js';
 import { createRaceSim, courseOf } from './race.js';
-import { STREAMS, ROWER_NAMES, streamByN, cap } from './sim/streams.js';
+import { STREAMS, streamByN, cap } from './sim/streams.js';
 import { startSlot, clock as fmt, stars as starsOf, FINISH_WINDOW } from './sim/race.js';
 import { beatPos } from './sim/racer.js';
 import { SLOW, stepView } from './view.js';
@@ -62,18 +62,15 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     } catch {}
     return nightOf(Date.now());
   };
-  const loadPerf = performance.now();
   let W = innerWidth;
   let H = innerHeight;
   let room = null;
   let net = null;
   let closed = null;
-  let screen = 'title'; // title | dock | chart | dream | timing | boathouse | tonight
+  let screen = 'dock'; // dock | chart | dream | timing | boathouse | tonight
   let shop = null; // the Boathouse open: { tab, try (an item tried on, not owned) }
   let run = null; // the race on screen (a room round, a Dream run)
-  let attract = null; // the title's race of rival rowers
-  let primary = null; // what Space / Enter does on this screen
-  let lobbyHidden = null;
+  let primary = null; // what Space does on this screen (Enter is the platform's Ready key in the lobby)
   let dockSig = '';
   let dockStream = 0;
   let dockPlayers = [];
@@ -99,12 +96,11 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     net = createNet(room, { distanceOf: (id) => run?.dist?.get(id) ?? null });
     room.on('close', (reason) => onClose(reason));
     room.on('match', () => {
-      lobbyHidden = null;
       dockSig = '';
+      applyInsets();
     });
     room.on('host', () => (dockSig = ''));
-    lobbyHidden = null;
-    applyLobby();
+    applyInsets();
     lobbyPresence();
   }
 
@@ -120,7 +116,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     ui.modal(null);
     ui.chart(null);
     ui.dock(false);
-    ui.start(false);
     ui.title(false);
     ui.closed(say[0], say[1], rejoin);
     primary = rejoin;
@@ -145,26 +140,13 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     } catch {}
   }
 
-  /** The platform's Ready strip shows on the Dock only (not on the title, the Dream or the timing test). */
-  function applyLobby() {
-    if (!room) return;
-    const hide = screen !== 'dock';
-    if (hide === lobbyHidden) return;
-    lobbyHidden = hide;
-    try {
-      if (hide) room.hideLobby();
-      else room.hideLobby(false);
-    } catch {}
-    applyInsets();
-  }
-
   // ---------------------------------------------------------------- layout around the platform
 
   function applyInsets() {
     // `tl`: how far down the platform's buttons reach in the top-left corner (the score sits under them)
     const ins = { top: 0, left: 0, right: 0, bottom: 0, tl: 70 };
-    const lobbyScreen = screen === 'dock' && (!net || net.match.phase === 'lobby');
-    if (!Array.isArray(reserved)) ins.bottom = lobbyScreen ? 88 : 0;
+    // the platform's Ready strip is up all through the room's lobby, whatever this page is showing
+    if (!Array.isArray(reserved)) ins.bottom = !net || net.match.phase === 'lobby' ? 88 : 0;
     else {
       ins.tl = 0;
       for (const a of reserved) {
@@ -179,20 +161,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
 
   // ---------------------------------------------------------------- screens
 
-  function showTitle() {
-    screen = 'title';
-    ui.title(true, { stars: starCount(P()), onRow: row });
-    primary = row;
-    applyLobby();
-  }
-
-  function row() {
-    audio.start();
-    audio.fx.tap();
-    attract = null;
-    toDock();
-  }
-
   function toDock() {
     endRun();
     screen = 'dock';
@@ -204,7 +172,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     dockStream = 0;
     primary = null;
     menuAnchor = null;
-    applyLobby();
     applyInsets();
     lobbyPresence();
     audio.setMusic(0.32);
@@ -217,13 +184,13 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     ui.title(false);
     ui.chart(null);
     ui.modal(null);
+    ui.boathouse(null);
+    shop = null;
     ui.dock(false);
-    ui.start(false);
     ui.berths([]);
     timing = null;
-    attract = null;
+    primary = null;
     screen = 'dock';
-    applyLobby();
   }
 
   function endRun() {
@@ -235,7 +202,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     ui.hint(null);
     ui.watching(null);
     ui.oarHints(false);
-    ui.tapToRow(false);
     ui.tags([]);
     scene.hidePodium();
     scene.setGhost(false);
@@ -352,17 +318,16 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       if (st) run.sim.me.restore(st, t);
       if (finite(d.fin[meId])) run.myFin = d.fin[meId];
     }
-    if (t < 0) ui.streamName(stream.name, m.rounds > 1 ? `Stream ${m.round} of ${m.rounds}` : '');
-    if (meId && !audio.running()) ui.tapToRow(true);
+    if (t < 0 && m.round > 1) ui.streamName(stream.name, `Stream ${m.round} of ${m.rounds}`);
+    // Ready was pressed on the platform's page: try for the sound now (the first stroke makes sure of it)
+    if (meId) audio.start();
     screen = 'dock';
     ui.title(false);
     ui.dock(false);
-    ui.start(false);
     ui.berths([]);
     ui.chart(null);
     ui.modal(null);
     primary = null;
-    applyLobby();
     applyInsets();
   }
 
@@ -372,7 +337,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     ui.modal(null);
     ui.chart(null);
     ui.dock(false);
-    ui.start(false);
     ui.berths([]);
     const stream = streamByN(n);
     const rs = stream.rivalSkill;
@@ -387,10 +351,8 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     for (const s of seats) if (s.bot) run.sim.simulate(s.id);
     screen = 'dream';
     primary = null;
-    applyLobby();
     applyInsets();
     ui.streamName(stream.name, twist ? `Tonight's Dream · ${TWIST_NAMES[twist]}` : `The Dream · ${n} of ${STREAMS.length}`);
-    if (!audio.running()) ui.tapToRow(true);
     const key = run.key;
     if (!twist && P().dream[n]?.best) {
       store.ghost(n).then((g) => {
@@ -400,16 +362,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
         }
       });
     }
-  }
-
-  function makeAttract() {
-    const seats = ROWER_NAMES.map((name, i) => ({ id: `a${i}`, name, bot: true, skill: 0.45 + i * 0.08, slot: i }));
-    const start = performance.now();
-    // the title rows tonight's stream, so the first thing seen changes every night
-    const tn = tonightOf(nightNow());
-    const r = makeRun({ kind: 'attract', key: `attract:${Math.floor(start)}`, n: tn.n, twist: tn.twist, seats, meId: null, source: (perf) => (perf - start) / 1000 - 1 });
-    for (const s of seats) r.sim.simulate(s.id);
-    return r;
   }
 
   // ---------------------------------------------------------------- the frame
@@ -423,10 +375,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     route();
     let f = null;
     if (run) f = runFrame(run, perf, dt, now);
-    else if (screen === 'title' && !closed) {
-      if (!attract || attract.t > 78) attract = makeAttract();
-      f = runFrame(attract, perf, dt, now);
-    } else f = dockFrame(perf, dt, now);
+    else f = dockFrame(perf, dt, now);
     if (perf > hintClearAt && hintClearAt) {
       hintClearAt = 0;
       ui.hint(null);
@@ -436,7 +385,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   }
 
   function flowName() {
-    if (screen === 'title' && !run) return 'title';
     if (run && run.kind === 'room') {
       const ph = net.match.phase;
       if (ph === 'roundEnd') return 'roundEnd';
@@ -505,7 +453,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const vt = view.vt;
     const vRace = t - r.lag;
     const vFocus = (focus && view.boats.find((b) => b.id === focus.id)) ?? focus;
-    if (me && r.kind !== 'attract') {
+    if (me) {
       const place = order.indexOf(r.meId) + 1;
       if (r.place && place && phase === 'round' && t > 3 && r.myFin === null) {
         if (place < r.place) audio.fx.overtake(r.stream.tonic);
@@ -525,10 +473,10 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     if (isRoom) phaseStep(r, m, d, perf);
     if (r.kind === 'dream') dreamStep(r, t, perf);
     // ripples onto the oars
-    const racing = me && r.myFin === null && phase === 'round' && !r.paused && r.kind !== 'attract';
+    const racing = me && r.myFin === null && phase === 'round' && !r.paused;
     const rip = racing ? ripples(r, tv, meB) : null;
     // the song
-    if (r.kind !== 'attract') soundStep(r, t, phase, view.boats, vFocus, me, view);
+    soundStep(r, t, phase, view.boats, vFocus, me, view);
     // first finisher: the arch's lanterns go out over the window
     const firstFin = Object.values(fin).filter(finite).reduce((a, b) => Math.min(a, b), Infinity);
     let finishLit = 9;
@@ -540,7 +488,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     }
     const countLit = t < 0 ? r.song.count.filter((c, i) => i > 0 && c <= tv).length : 3;
     // HUD, tags
-    if (r.kind !== 'attract') hudStep(r, t, phase, view.boats, order, vFocus, perf);
+    hudStep(r, t, phase, view.boats, order, vFocus, perf);
     if (me && r.myFin !== null) {
       const small = vRace > r.myFin + WATCH_AFTER;
       if (r.stampSmall !== small) {
@@ -551,8 +499,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     // the camera
     const portrait = H > W;
     let cam;
-    if (r.kind === 'attract') cam = { mode: 'title', portrait, boat: vFocus };
-    else if (phase === 'results') cam = { mode: 'results', portrait };
+    if (phase === 'results') cam = { mode: 'results', portrait };
     else if (t < 0) cam = { mode: 'intro', k: (t + INTRO) / INTRO, portrait, boat: vFocus };
     else if (me && r.myFin !== null && vRace > r.myFin + WATCH_AFTER && phase !== 'roundEnd' && chaser(view.boats, left)) {
       // over the line: after a moment, watch whoever is nearest the line still rowing
@@ -572,8 +519,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       now,
       dt,
       rate: view.rate,
-      // the title's race: calmer water (no trails, fewer wakes and rings) so the boats read
-      quiet: r.kind === 'attract',
       t: vt,
       B: beatPos(r.song, vt),
       pulse,
@@ -704,7 +649,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   // ---------------------------------------------------------------- events, strokes, feedback
 
   function onEvent(r, id, ev, perf) {
-    const mine = id === r.meId && r.kind !== 'attract';
+    const mine = id === r.meId;
     switch (ev.type) {
       case 'stroke':
         if (mine) {
@@ -815,7 +760,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   /** A stroke from a key or a touch, at the moment the event happened. */
   function stroke(side, perf) {
     if (!audio.running()) audio.start();
-    ui.tapToRow(false);
     const r = run;
     if (!r || r.paused) return false;
     if (!r.meId || !r.sim.me) {
@@ -1083,10 +1027,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
 
   function phaseStep(r, m, d, perf) {
     const phase = m.phase;
-    if (phase === r.phaseShown) {
-      if (phase === 'results') resultsFoot(r, m);
-      return;
-    }
+    if (phase === r.phaseShown) return;
     r.phaseShown = phase;
     if (phase === 'roundEnd') {
       ui.stamp(0);
@@ -1156,27 +1097,9 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   function resultsBand(r, m, d) {
     const st = m.results ?? m.standings;
     const rows = st.map((s) => rowOf(r, s.id, s.place, d, { pts: m.rounds > 1 ? `${s.points}` : null, time: m.rounds > 1 ? null : rowOf(r, s.id, 0, d).time, best: s.id === r.meId && r.newBest && m.rounds === 1 }));
-    r.footKey = '';
-    ui.band({ title: m.rounds > 1 ? 'The cup' : r.stream.name, sub: '', rows, foot: footFor(r, m) });
+    ui.band({ title: m.rounds > 1 ? 'The cup' : r.stream.name, sub: '', rows, foot: [] });
     const top = st.slice(0, 3).map((s) => s.id);
     scene.showPodium(top, r.looks);
-  }
-
-  function footFor(r, m) {
-    if (room.kind !== 'public' && m.isHost) {
-      const b = ui.button('oar small amber', 'To the dock', () => net.match.endMatch(), 'Enter');
-      primary = () => net.match.endMatch();
-      return [b];
-    }
-    primary = null;
-    return [room.kind === 'public' ? 'Back to the dock soon' : 'Waiting for the host'];
-  }
-
-  function resultsFoot(r, m) {
-    const key = `${room.kind !== 'public' && m.isHost}`;
-    if (r.footKey === key) return;
-    if (r.footKey) resultsBand(r, m, r.d);
-    r.footKey = key;
   }
 
   // ---------------------------------------------------------------- The Dream
@@ -1294,7 +1217,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   function openChart() {
     screen = 'chart';
     ui.dock(false);
-    ui.start(false);
     ui.berths([]);
     ui.tags([]);
     ui.modal(null);
@@ -1337,7 +1259,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
         });
       });
       const row2 = ui.h('div', 'plank');
-      row2.append(ui.button('oar small', 'Row', go, 'Enter'));
+      row2.append(ui.button('oar small', 'Row', go, 'Space'));
       row2.append(ui.button('btn ghost', 'Back', () => {
         ui.modal(null);
         primary = null;
@@ -1357,7 +1279,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     screen = 'timing';
     applyLobby();
     ui.dock(false);
-    ui.start(false);
     ui.berths([]);
     timing = { taps: [], start: null, shown: -1, done: false, value: P().calib, ring: null, ms: null };
     drawTiming();
@@ -1388,7 +1309,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
         row1.append(ui.button('arrow', '−', () => nudge(-0.005)), ms, ui.button('arrow', '+', () => nudge(0.005)));
         el.append(row1);
         const row2 = ui.h('div', 'plank');
-        row2.append(ui.button('oar small', 'Done', timingDone, 'Enter'));
+        row2.append(ui.button('oar small', 'Done', timingDone, 'Space'));
         row2.append(ui.button('btn ghost', 'Again', openTiming));
         el.append(row2);
       }
@@ -1472,9 +1393,8 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     const isHost = !!room?.isHost;
     const race = Number(settings.race) === 3 ? 3 : 1;
     const watching = !!net?.round && !net.match.me;
-    const solo = room?.kind === 'solo';
     const night = nightNow();
-    const sig = [n, race, isHost, solo, screen, watching, P().dot, P().xp, P().blooms, night, P().best[n] ?? '', room?.kind, meFirst.map((p, i) => `${p.id}:${p.ready ? 1 : 0}:${wearSig(wears[i])}:${p.name}`).join(','), Object.keys(avatarsSeen(meFirst)).length].join('|');
+    const sig = [n, race, isHost, screen, watching, P().dot, P().xp, P().blooms, night, P().best[n] ?? '', room?.kind, meFirst.map((p, i) => `${p.id}:${wearSig(wears[i])}:${p.name}`).join(','), Object.keys(avatarsSeen(meFirst)).length].join('|');
     if (sig !== dockSig) {
       dockSig = sig;
       dockPlayers = meFirst.map((p, i) => ({ id: p.id, look: playerLook(avatars.get(p.id), i, wears[i]) }));
@@ -1501,20 +1421,8 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
           onTiming: openTiming,
           timingDot: !!P().dot,
         });
-        if (screen !== 'dock') ui.start(false);
-        else if (solo) {
-          ui.start(true, 'Race', startSolo);
-          primary = startSolo;
-        } else {
-          ui.start(false);
-          primary = null;
-        }
-      } else if (screen === 'boathouse') {
-        ui.start(false);
-      } else {
-        ui.dock(false);
-        ui.start(false);
-      }
+        if (screen === 'dock') primary = null;
+      } else if (screen !== 'boathouse') ui.dock(false);
     }
     // the boats at their berths
     const boats = dockPlayers.map((p, i) => {
@@ -1522,12 +1430,12 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       const pt = course.point(slot.s, slot.d);
       return { id: p.id, x: pt.x, z: pt.z, h: pt.h, s: slot.s, v: 0, c: 0, k: 0, ls: 0, lq: 0, f: 0, ft: 0 };
     });
-    // name tags, ready lanterns, the host's crown (private servers); empty berths invite a friend
+    // name tags, the host's crown (private servers); empty berths invite a friend
     if (screen === 'dock') {
       const tags = boats.map((b, i) => {
         const p = meFirst[i];
         const pr = scene.project(b.x, 2.4, b.z, W, H);
-        return { id: b.id, x: pr?.x ?? -999, y: pr?.y ?? -999, name: p.name, me: p.id === room?.me?.id, ready: solo ? null : !!p.ready || (room.kind !== 'public' && p.id === room.host), host: room.kind !== 'public' && room.kind !== 'solo' && p.id === room.host, hidden: !pr };
+        return { id: b.id, x: pr?.x ?? -999, y: pr?.y ?? -999, name: p.name, me: p.id === room?.me?.id, host: room.kind !== 'public' && room.kind !== 'solo' && p.id === room.host, hidden: !pr };
       });
       ui.tags(tags);
       const invite = room && (room.kind === 'private' || room.kind === 'named');
@@ -1614,11 +1522,9 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     screen = 'boathouse';
     shop = { tab: 'body', try: null };
     ui.dock(false);
-    ui.start(false);
     ui.berths([]);
     ui.tags([]);
     dockSig = '';
-    applyLobby();
     showShop();
     primary = closeBoathouse;
   }
@@ -1629,7 +1535,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     ui.boathouse(null);
     screen = 'dock';
     dockSig = '';
-    applyLobby();
     primary = null;
   }
 
@@ -1740,8 +1645,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   function openTonight() {
     audio.fx.tap();
     screen = 'tonight';
-    ui.start(false);
-    applyLobby();
     fetchEveryone(nightNow());
     showTonight();
     primary = () => startTonight();
@@ -1753,7 +1656,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     screen = 'dock';
     dockSig = '';
     primary = null;
-    applyLobby();
   }
 
   function showTonight() {
@@ -1789,7 +1691,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
 
   /** A run is over for this player: pay XP and blooms, count the wishes and the night. Once a run. */
   function settle(r, o) {
-    if (r.settled || r.pilot != null || !r.meId || !r.sim.me || r.kind === 'attract') return null;
+    if (r.settled || r.pilot != null || !r.meId || !r.sim.me) return null;
     r.settled = true;
     const p = P();
     const day = nightNow();
@@ -1846,14 +1748,6 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     return `${names[rw.id] ?? rw.id}${what}`;
   }
 
-  function startSolo() {
-    audio.start();
-    audio.fx.tap();
-    try {
-      room.startMatch();
-    } catch {}
-  }
-
   // ---------------------------------------------------------------- input
 
   function stampOf(e) {
@@ -1866,6 +1760,8 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
     const perf = stampOf(e);
+    // any key can start the sound (Ready and the countdown happen on the platform's page, where this page can't hear them)
+    if (!audio.running()) audio.start();
     const left = k === 'a' || k === 'A' || k === 'ArrowLeft' || k === 'j' || k === 'J';
     const right = k === 'd' || k === 'D' || k === 'ArrowRight' || k === 'k' || k === 'K';
     // both oars at once (a pull on a gold beat): Space, W / S, the up and down arrows
@@ -1882,7 +1778,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       e.preventDefault();
       return;
     }
-    if (k === ' ' || k === 'Enter') {
+    if (k === ' ' || (k === 'Enter' && closed)) {
       if (screen === 'timing' && timing && !timing.done) {
         timingTap(perf);
         e.preventDefault();
@@ -1905,7 +1801,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   /** Is the player rowing a race right now (so Space rows instead of pressing a button)? */
   function racingNow() {
     const r = run;
-    if (!r || r.kind === 'attract' || r.paused || !r.sim?.me || r.myFin !== null || r.pilot != null) return false;
+    if (!r || r.paused || !r.sim?.me || r.myFin !== null || r.pilot != null) return false;
     return r.kind !== 'room' || net.match.phase === 'round';
   }
 
@@ -1917,23 +1813,18 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
       timingTap(perf);
       return;
     }
-    if (run && run.kind !== 'attract') {
+    if (run) {
       stroke(e.clientX < W / 2 ? -1 : 1, perf);
       return;
     }
-    if (screen !== 'title') audio.start();
+    audio.start();
   }
 
   // ---------------------------------------------------------------- autoplay (local copies only: shots and the trailer)
 
   function autoplayStep(perf) {
     if (closed || !room) return;
-    if (screen === 'title' && !run) {
-      if (flags.autoplayTo === 'title') return;
-      if (perf - loadPerf > 1500) row();
-      return;
-    }
-    if (flags.autoplayTo === 'lobby') return;
+    if (flags.autoplayTo) return;
     if (flags.dream && !ap.dreamed && screen === 'dock' && !run) {
       ap.dreamed = true;
       startDream(flags.dream);
@@ -1943,6 +1834,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
     ap.at = perf;
     if (room.isHost && flags.stream && Number(room.settings?.stream) !== flags.stream) return room.setSetting('stream', flags.stream);
     if (room.isHost && flags.race && Number(room.settings?.race) !== flags.race) return room.setSetting('race', flags.race);
+    // a local copy on its own has no platform lobby to press
     if (room.kind === 'solo' || (room.isHost && room.kind !== 'public' && room.canStart)) room.startMatch();
     else room.setReady(true);
   }
@@ -1952,7 +1844,7 @@ export function createGame({ ow, scene, ui, store, flags = {} }) {
   return {
     attach,
     start() {
-      showTitle();
+      toDock();
       addEventListener('keydown', onKey);
       addEventListener('pointerdown', onPointer);
     },

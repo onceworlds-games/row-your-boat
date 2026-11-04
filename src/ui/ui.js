@@ -23,6 +23,8 @@ function button(cls, label, onClick, key = null) {
   else if (label !== null) b.append(document.createTextNode(label));
   if (key) b.append(h('span', 'key', key));
   b.addEventListener('pointerdown', (e) => e.stopPropagation());
+  // a click leaves the focus where it was: Enter is the platform's Ready key and mustn't press this again as well
+  b.addEventListener('mousedown', (e) => e.preventDefault());
   b.addEventListener('click', (e) => {
     e.stopPropagation();
     onClick?.(e);
@@ -89,7 +91,7 @@ export function createUI(root, tagRoot) {
     clear,
 
     // ------------------------------------------------------------ title
-    title(show, { stars = 0, onRow } = {}) {
+    title(show) {
       clear('title');
       if (!show) return null;
       const L = layer('title');
@@ -99,18 +101,9 @@ export function createUI(root, tagRoot) {
       const reflect = h('div', 'reflect display');
       reflect.append(h('div', '', 'Boat'));
       reflect.setAttribute('aria-hidden', 'true');
-      // without onRow (the world still loading) the title shows without its button
-      const row = onRow ? button('oar', 'Row', onRow, 'Space') : null;
       box.append(h1, reflect);
-      if (row) box.append(row);
-      if (stars > 0) {
-        const s = h('div', 'stars outlined');
-        s.append(svgEl(ICON.starOn, 'inl'), document.createTextNode(` ${stars}`));
-        s.querySelector('svg').style.cssText = 'width:20px;height:20px;vertical-align:-3px';
-        box.append(s);
-      }
       L.append(box);
-      return { row };
+      return null;
     },
 
     // ------------------------------------------------------------ the dock
@@ -361,7 +354,7 @@ export function createUI(root, tagRoot) {
       for (const t of list) {
         seen.add(t.id);
         let e = tagRoot.querySelector(`[data-id="${CSS.escape(t.id)}"]`);
-        const key = `${t.name}|${t.me}|${t.ready}|${t.host}|${t.zz}|${t.small}|${t.symbol}|${t.color}|${t.watch}`;
+        const key = `${t.name}|${t.me}|${t.host}|${t.zz}|${t.small}|${t.symbol}|${t.color}|${t.watch}`;
         if (!e) {
           e = h('div', 'tag');
           e.dataset.id = t.id;
@@ -375,7 +368,6 @@ export function createUI(root, tagRoot) {
           if (t.host) e.append(svgEl(ICON.crown));
           e.append(h('span', '', t.name));
           if (t.zz) e.append(h('span', 'zz', 'zZ'));
-          if (t.ready !== undefined && t.ready !== null) e.append(svgEl(t.ready ? ICON.readyOn : ICON.readyOff));
         }
         e.style.left = `${t.x}px`;
         e.style.top = `${t.y}px`;
@@ -587,16 +579,6 @@ export function createUI(root, tagRoot) {
       L.append(e);
     },
 
-    tapToRow(show) {
-      const L = layer('tap');
-      if (!show) {
-        L.textContent = '';
-        return;
-      }
-      if (L.firstChild) return;
-      L.append(h('div', 'tapgo display outlined', 'Tap to row'));
-    },
-
     oarHints(show, glowSide = 0) {
       const L = layer('oars');
       if (!show) {
@@ -769,18 +751,6 @@ export function createUI(root, tagRoot) {
       ui._watch = text;
       L.textContent = '';
       L.append(h('div', 'follow display outlined', text));
-    },
-
-    /** A start button of the game's own (a page on its own has no platform Ready strip). */
-    start(show, label = 'Race', onClick = null) {
-      clear('start');
-      if (!show) return null;
-      const L = layer('start');
-      const box = h('div', 'startbox');
-      const b = button('oar amber', label, onClick, 'Enter');
-      box.append(b);
-      L.append(box);
-      return b;
     },
 
     closed(text, label, onClick) {

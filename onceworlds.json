@@ -37,7 +37,7 @@
     { "keys": ["↑", "↓"], "action": "Both oars at once" },
     { "keys": ["Both sides"], "action": "Both oars at once" },
     { "keys": ["Off-beat tap"], "action": "Droplets in the merrily bar" },
-    { "keys": ["Space", "Enter"], "action": "Row on the title, menus" },
+    { "keys": ["Space"], "action": "Menus" },
     { "keys": ["Esc", "P"], "action": "Pause The Dream" },
     { "keys": ["R"], "action": "Row a Dream stream again" },
     { "keys": ["Tap"], "action": "Watching: next boat" }
